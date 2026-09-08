@@ -1,0 +1,550 @@
+/* ==========================================================================
+   GGH Trapdoor -- crypto-lab
+   Dark is the only theme (see the anti-flash script in index.html). There is no
+   toggle and no prefers-color-scheme anywhere in this file.
+   ========================================================================== */
+
+:root {
+  /* The catalog accent for this lab. The shared top bar reads this token too,
+     which is why nothing else may redefine it -- everything the page paints is
+     derived from the two tokens below instead. */
+  --accent: #35d6bb;
+  /* Accent as TEXT or a border on a dark surface. */
+  --accent-text: #4fe0c8;
+  /* Ink for text sitting ON an accent fill (measured 10.4:1 against --accent). */
+  --accent-ink: #04140f;
+
+  --bg: #080b12;
+  --surface: #111823;
+  --surface-2: #18202d;
+  --surface-3: #202a39;
+
+  /* Divider rules only. Deliberately low contrast; never used on a control. */
+  --border: #33404f;
+  /* Every button / input / select edge. >= 3:1 on --surface (measured 5.8:1),
+     which is what WCAG 1.4.11 requires of a control boundary. The audit method
+     records a lab shipping a 1:13 ratio between these two tokens because only
+     three controls were sampled -- so this token is applied to ALL of them. */
+  --control-border: #7d93a8;
+  --border-strong: #7d93a8;
+
+  --text: #e9eff7;
+  --text-dim: #b3c0d1;
+  --text-muted: #93a2b6;
+
+  /* Semantic tones. Colour tracks SYSTEM INTEGRITY, not the raw return value:
+     a forged signature the verifier ACCEPTS is an alarm, not a success. */
+  --ok: #57d9a3;
+  --ok-ink: #04160f;
+  --ok-bg: #0e2a22;
+  --warn: #f2b53c;
+  --warn-ink: #1a1203;
+  --warn-bg: #2e2410;
+  --bad: #ff8095;
+  --bad-ink: #200308;
+  --bad-bg: #331119;
+
+  /* The two lattice bases have fixed visual identities across every exhibit:
+     the private (short, good) basis is warm/accent, the public (long) one is
+     neutral. Never swap these -- the whole lab is one contrast. */
+  --basis-private: #35d6bb;
+  --basis-public: #9aa9bd;
+
+  --radius: 10px;
+  --mono: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+  color-scheme: dark;
+}
+
+/* The <html> element needs its own background-color, as the LONGHAND: axe and
+   WebKit both miss the `background` shorthand here. */
+html {
+  background-color: var(--bg);
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  line-height: 1.55;
+}
+
+/* Base element rules are scoped to #app, never global, so they cannot fight the
+   always-dark shared top bar (which is self-contained). */
+#app {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 clamp(0.9rem, 3vw, 2rem) 3rem;
+}
+#app:focus {
+  outline: none;
+}
+#app :is(h2, h3, h4) {
+  line-height: 1.25;
+}
+#app p {
+  color: var(--text-dim);
+}
+#app code {
+  font-family: var(--mono);
+  background: var(--surface-2);
+  padding: 0.05em 0.35em;
+  border-radius: 5px;
+  color: var(--text);
+}
+/* Inline links carry a persistent underline: colour alone is not a distinction. */
+#app a {
+  color: var(--accent-text);
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+#app a:hover {
+  text-decoration-thickness: 2px;
+}
+#app :is(a, button, input, select, canvas, [tabindex]):focus-visible {
+  outline: 2px solid var(--accent-text);
+  outline-offset: 2px;
+}
+
+/* ---------- hero (this lab owns it; fleet-consistent by review) ---------- */
+.cl-hero{display:flex;align-items:flex-start;justify-content:space-between;gap:clamp(1rem,4vw,3rem);flex-wrap:wrap;margin:clamp(1rem,3vw,2rem) 0 1.5rem;}
+.cl-hero-main{flex:1 1 22rem;min-width:min(100%,20rem);}
+.cl-hero-title{margin:0;font-size:clamp(1.6rem,3.8vw,2.7rem);font-weight:700;line-height:1.1;letter-spacing:.01em;}
+.cl-hero-sub{margin:.4rem 0 0;font-size:clamp(.9rem,1.6vw,1.05rem);letter-spacing:.01em;}
+.cl-hero-desc{margin:.55rem 0 0;font-size:1rem;line-height:1.5;color:var(--text-dim);max-width:60ch;}
+.cl-hero-why{flex:0 1 min(40%,26rem);min-width:min(100%,15rem);border:1px solid color-mix(in srgb, var(--accent) 40%, var(--border));border-radius:10px;padding:.85rem 1.05rem;background:color-mix(in oklab,var(--accent) 6%,transparent);box-sizing:border-box;}
+.cl-hero-why-label{display:block;font-size:.68rem;font-weight:700;letter-spacing:.14em;color:var(--accent-text);}
+.cl-hero-why-text{margin:.35rem 0 0;font-size:.95rem;line-height:1.5;color:var(--text);}
+@media (max-width:640px){.cl-hero{flex-direction:column;}.cl-hero-main{min-width:0;flex-basis:auto;}.cl-hero-why{flex-basis:auto;width:100%;}}
+/* No opacity fade on the subtitle: opacity multiplies the contrast ratio down.
+   Muting is done by lowering the colour's lightness instead. */
+.cl-hero-sub { color: var(--accent-text); }
+
+/* ---------- intro ---------- */
+.intro {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 1rem 1.15rem;
+  margin-bottom: 1.5rem;
+}
+.intro h2 {
+  margin-top: 0;
+  font-size: 1.1rem;
+}
+.intro p {
+  max-width: 72ch;
+}
+.scope-note {
+  border-left: 3px solid var(--warn);
+  padding-left: 0.85rem;
+  color: var(--text-muted) !important;
+  font-size: 0.92rem;
+  margin-bottom: 0;
+}
+
+/* ---------- controls ---------- */
+.controls {
+  margin-bottom: 1.75rem;
+}
+.controls h2 {
+  font-size: 1.05rem;
+}
+.control-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: 1rem;
+}
+.control {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.85rem 1rem;
+}
+.control label {
+  display: block;
+  font-weight: 600;
+  font-size: 0.9rem;
+  margin-bottom: 0.45rem;
+  color: var(--text);
+}
+.control-hint {
+  font-size: 0.82rem;
+  color: var(--text-muted) !important;
+  margin: 0.5rem 0 0;
+}
+.control-actions {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+#dim-out {
+  font-family: var(--mono);
+  color: var(--accent-text);
+  font-weight: 700;
+}
+input[type='range'] {
+  width: 100%;
+  accent-color: var(--accent);
+}
+input[type='number'],
+select {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.45rem 0.6rem;
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1px solid var(--control-border);
+  border-radius: 8px;
+  font: inherit;
+  font-size: 0.9rem;
+}
+/* A styled <select> must drop the native appearance and supply its own chevron,
+   otherwise the platform arrow is painted over. */
+select {
+  appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, var(--text-dim) 50%),
+    linear-gradient(135deg, var(--text-dim) 50%, transparent 50%);
+  background-position: calc(100% - 18px) 55%, calc(100% - 13px) 55%;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  padding-right: 2rem;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.9rem;
+  border-radius: 8px;
+  border: 1px solid var(--control-border);
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  min-height: 2.4rem;
+}
+.btn:hover:not(:disabled) {
+  background: var(--surface-3);
+  border-color: var(--accent-text);
+}
+.btn:disabled {
+  cursor: not-allowed;
+  color: var(--text-muted);
+  border-color: var(--border);
+}
+.btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+.btn-primary:hover:not(:disabled) {
+  background: var(--accent-text);
+  border-color: var(--accent-text);
+  color: var(--accent-ink);
+}
+.btn-primary:disabled {
+  background: var(--surface-2);
+  color: var(--text-muted);
+  border-color: var(--border);
+}
+
+/* ---------- acts ---------- */
+.act {
+  border-top: 1px solid var(--border);
+  padding-top: 1.5rem;
+  margin-top: 2rem;
+}
+.act h2 {
+  font-size: 1.25rem;
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+.act-num {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent-ink);
+  background: var(--accent);
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+}
+.act-lede {
+  max-width: 74ch;
+}
+.act-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  margin: 0.9rem 0 1.1rem;
+}
+
+.panel-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(19rem, 1fr));
+  gap: 1rem;
+}
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.9rem 1.05rem;
+  margin-bottom: 1rem;
+  min-width: 0;
+}
+.panel h3 {
+  margin: 0 0 0.6rem;
+  font-size: 0.95rem;
+  letter-spacing: 0.02em;
+}
+.panel-hint {
+  font-size: 0.85rem;
+  color: var(--text-muted) !important;
+  margin-top: 0;
+}
+canvas {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+/* ---------- verdicts ---------- */
+/* Never colour alone: every verdict carries an icon, a word, and a colour. */
+.verdict {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid;
+  font-size: 0.92rem;
+}
+.verdict-icon {
+  font-family: var(--mono);
+  font-weight: 700;
+  flex: 0 0 auto;
+}
+.verdict-label {
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+.verdict-ok {
+  background: var(--ok-bg);
+  border-color: var(--ok);
+  color: var(--text);
+}
+.verdict-ok .verdict-icon,
+.verdict-ok .verdict-label {
+  color: var(--ok);
+}
+.verdict-bad {
+  background: var(--bad-bg);
+  border-color: var(--bad);
+  color: var(--text);
+}
+.verdict-bad .verdict-icon,
+.verdict-bad .verdict-label {
+  color: var(--bad);
+}
+.verdict-warn {
+  background: var(--warn-bg);
+  border-color: var(--warn);
+  color: var(--text);
+}
+.verdict-warn .verdict-icon,
+.verdict-warn .verdict-label {
+  color: var(--warn);
+}
+.verdict-idle {
+  background: var(--surface-2);
+  border-color: var(--border);
+  color: var(--text-dim);
+}
+.verdict-idle .verdict-icon,
+.verdict-idle .verdict-label {
+  color: var(--text-muted);
+}
+
+/* ---------- data readouts ---------- */
+.kv {
+  margin: 0;
+  font-size: 0.9rem;
+}
+.kv div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.28rem 0;
+  border-bottom: 1px solid var(--border);
+}
+.kv div:last-child {
+  border-bottom: none;
+}
+.kv dt {
+  color: var(--text-dim);
+}
+.kv dd {
+  margin: 0;
+  font-family: var(--mono);
+  color: var(--text);
+  text-align: right;
+}
+.kv dd.good {
+  color: var(--ok);
+}
+.kv dd.bad {
+  color: var(--bad);
+}
+
+.strip {
+  overflow-x: auto;
+  display: flex;
+  gap: 0.3rem;
+  padding: 0.5rem 0.2rem;
+  font-family: var(--mono);
+  font-size: 0.78rem;
+}
+.strip-cell {
+  flex: 0 0 auto;
+  min-width: 3.4rem;
+  text-align: center;
+  padding: 0.3rem 0.35rem;
+  border-radius: 6px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+}
+.strip-cell .strip-e {
+  display: block;
+  font-weight: 700;
+}
+.strip-cell.e-pos .strip-e {
+  color: var(--ok);
+}
+.strip-cell.e-neg .strip-e {
+  color: var(--warn);
+}
+.strip-cell.e-odd {
+  border-color: var(--bad);
+}
+.strip-cell.e-odd .strip-e {
+  color: var(--bad);
+}
+
+.stepper {
+  list-style: none;
+  counter-reset: step;
+  margin: 0 0 1rem;
+  padding: 0;
+}
+.stepper li {
+  counter-increment: step;
+  position: relative;
+  padding: 0.7rem 0.9rem 0.7rem 2.6rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  margin-bottom: 0.6rem;
+  font-size: 0.92rem;
+  color: var(--text-dim);
+}
+.stepper li::before {
+  content: counter(step);
+  position: absolute;
+  left: 0.75rem;
+  top: 0.7rem;
+  width: 1.35rem;
+  height: 1.35rem;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  font-weight: 700;
+  background: var(--surface-3);
+  color: var(--text-dim);
+}
+.stepper li.step-ok::before {
+  background: var(--ok);
+  color: var(--ok-ink);
+}
+.stepper li.step-bad::before {
+  background: var(--bad);
+  color: var(--bad-ink);
+}
+.stepper li strong {
+  color: var(--text);
+  display: block;
+  margin-bottom: 0.2rem;
+}
+.stepper li .step-detail {
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  display: block;
+  margin-top: 0.3rem;
+  overflow-wrap: anywhere;
+}
+
+.matrix-scroll {
+  overflow: auto;
+  max-height: 16rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+.matrix-scroll table {
+  border-collapse: collapse;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+}
+.matrix-scroll td {
+  padding: 0.15rem 0.4rem;
+  text-align: right;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+.matrix-scroll td.diag {
+  color: var(--accent-text);
+}
+
+.compare-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+  gap: 1rem;
+}
+
+/* ---------- footer ---------- */
+.scripture-footer {
+  margin-top: 2.5rem;
+  padding-top: 1.2rem;
+  border-top: 1px solid var(--border);
+  text-align: center;
+}
+.scripture-footer p {
+  color: var(--text-muted);
+  font-size: 0.88rem;
+  margin: 0.4rem 0;
+}
+.footer-links a {
+  color: var(--accent-text);
+  text-decoration: underline;
+}
+
+/* Motion is only ever tied to an action in this lab; honour the user's setting
+   for the progressive canvas redraws all the same. */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}

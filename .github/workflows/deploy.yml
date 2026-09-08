@@ -1,0 +1,177 @@
+# ONE workflow, on purpose. Triggers, gate, deploy and dependabot auto-merge all
+# live here together.
+#
+# The alternative -- a `ci.yml` holding the gate and a `deploy.yml` holding the
+# publish -- is what two of the three "fixed" siblings do (falcon-seal,
+# lll-break), and both drifted the same way: a bare `pages` concurrency group and
+# no `if:` on the deploy job. They get away with it only because their deploy
+# file never sees `pull_request`. It also breaks the safety argument below:
+# `needs:` cannot cross workflow files, so an auto-merge job in `ci.yml` is blind
+# to whatever `deploy.yml` checks. crypto-lab-lattice-gentle is the one compliant
+# sibling and is the shape copied here (fleet: 105 of 189 auto-merge jobs live in
+# deploy.yml, and all 105 of those files also carry the pull_request trigger).
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  pull_request:            # the gate must judge PRs too -- see template 6.1
+    branches: [main]
+  workflow_dispatch:       # the post-merge dispatch below depends on this -- see 6.2
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  # NOT a bare `pages`: with cancel-in-progress that lets a pull-request run
+  # cancel a live deploy of main. Fleet-wide this is 141 correct vs 48 bare, and
+  # the bare population is exactly the two-workflow shape described above.
+  group: pages-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      # `npm ci`, not `npm install`: the committed package-lock.json is the
+      # thing Dependabot bumps, and a bump that does not install from the lock
+      # has not been tested.
+      - run: npm ci
+
+      - name: Unit tests (Vitest, incl. spec KATs)
+        run: npm test
+
+      - name: Build (typecheck gates the build)
+        run: npm run build
+
+      # NEVER `--with-deps`: that apt step wedged 547 CI runs across this fleet
+      # in one afternoon, and kickoff.md bans it outright. ubuntu-latest already
+      # carries the shared libraries headless chromium needs.
+      #
+      # We are knowingly diverging from almost the whole fleet here: 196 of the
+      # 210 `npx playwright install` lines across ~188 repos still carry the
+      # banned flag, including all three siblings this workflow is modelled on,
+      # because _MASTER-TEMPLATE.md section 6 (and 4.1) still prints the banned
+      # form. kickoff.md is the later correction and wins. Do not "fix" this line
+      # back to match the neighbours.
+      - name: Install Playwright browser
+        run: npx playwright install chromium
+
+      # BOTH Playwright projects run, by name, and both gate the publish.
+      # A 2026-08-14 sweep found 29 repos whose deploy ran `test:a11y` alone, so
+      # their correctness suites -- the ones asserting the crypto actually works
+      # -- never blocked a publish. `npm test` above covers the Vitest unit
+      # suite; these two cover the browser.
+      - name: Accessibility gate (axe-core, WCAG 2.1 A/AA)
+        run: npm run test:a11y
+
+      # The claims suite is the correctness gate: I1 same-lattice, I2 decryption
+      # bound, Break 1 recovery, the negative claims (mod-2sigma fails on a
+      # non-constant-magnitude error; the descent fails on Gaussian signatures),
+      # Break 2 row recovery up to sign/permutation. A regression in the math
+      # must not be publishable, so it runs before the artifact upload.
+      - name: Claims gate (e2e claims suite, invariants I1-I5)
+        run: npm run test:claims
+
+      # Traces/screenshots for whichever of the two gates failed. `if: failure()`
+      # so a green run uploads nothing.
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: playwright-artifacts
+          path: |
+            test-results/
+            playwright-report/
+          if-no-files-found: ignore
+
+      - uses: actions/configure-pages@v6
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: dist
+
+  deploy:
+    # NOT `== 'push'`. That form also skips workflow_dispatch, which is the one
+    # trigger the post-merge dispatch below relies on: the dispatched run would
+    # check out, build, pass the whole gate, and then SKIP the deploy job.
+    # Observed on a real run in lattice-gentle: build=success, deploy=SKIPPED,
+    # site still serving the previous build with nothing going red.
+    if: github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5
+
+  # Dependabot only. `needs: build` is the whole safety argument -- a bump can
+  # only merge itself once this lab's own gate (Vitest units, typecheck+build,
+  # axe WCAG, claims suite) went green on the PR. The gate decides, not the
+  # version number.
+  dependabot-auto-merge:
+    needs: build
+    if: github.event_name == 'pull_request' && github.actor == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    # A job-level permissions block REPLACES the default scopes rather than
+    # adding to them. Without `actions: write` the deploy dispatch below returns
+    # HTTP 403 "Resource not accessible by integration", and because that call
+    # ends in `|| echo "::warning::"` the job still goes green while the site
+    # never rebuilds. Nine labs were found drifting this way on 2026-08-20.
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: write   # required by the deploy dispatch; without it gh workflow run 403s
+    steps:
+      # @v3, not the @v2 that _MASTER-TEMPLATE.md section 6.1 still prints: the
+      # fleet moved and is now 188 of 189 on v3.
+      - id: meta
+        uses: dependabot/fetch-metadata@v3
+
+      # Majors included on purpose. `needs:` above already required the whole
+      # gate to pass, and that gate judges a bump far better than its version
+      # number does. A major that actually breaks this lab fails the gate and
+      # stays open for a human. (Majors are still ungrouped in dependabot.yml,
+      # which is a different question -- see the comment there.)
+      - name: Merge any bump whose gate went green
+        # Retry: a sibling PR merging first moves main underneath us and GitHub
+        # rejects with "Base branch was modified". That is benign, so try again
+        # rather than failing the run over a race.
+        run: |
+          for attempt in 1 2 3; do
+            if gh pr merge --squash --delete-branch "$PR_URL"; then
+              exit 0
+            fi
+            echo "merge attempt $attempt failed; base branch may have moved - retrying"
+            sleep 15
+          done
+          echo "::warning::gate passed but the merge did not land after 3 attempts;"
+          echo "::warning::leaving this PR open - Dependabot will rebase and retry."
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # A merge made with GITHUB_TOKEN raises no push event -- GitHub suppresses
+      # them so workflows cannot retrigger themselves -- so deploy would never run
+      # and the site would keep serving the previous build. Ask for it explicitly;
+      # a workflow_dispatch through the API is not suppressed. The dispatched run
+      # is the same gate-then-deploy pipeline, so a bad merge still ships nothing.
+      - name: Deploy the merged result
+        if: success()
+        run: |
+          if gh pr view "$PR_URL" --json state --jq .state | grep -q MERGED; then
+            gh workflow run deploy.yml --repo "$GITHUB_REPOSITORY" --ref main \
+              || echo "::warning::deploy dispatch failed; run deploy.yml by hand"
+          fi
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
