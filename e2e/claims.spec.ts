@@ -141,11 +141,27 @@ test('C1: the two orthogonality defects are consistent with their per-dimension 
 test('C2: the decryption verdict is exactly what the printed bound predicts', async ({ page }) => {
   const errors = await open(page);
 
+  // The page PREDICTS both outcomes from the bound before either decryption is
+  // run. Capture the predictions first, then drive the real thing and require
+  // them to match -- two surfaces that must agree, which is the cross-check that
+  // makes I2 a claim rather than a decoration. Without this, weakening the
+  // threshold in the source changes only a CSS tone and no page-level test
+  // notices (measured: it did not).
+  await page.click(SELECTORS.encrypt);
+  await expect(page.locator(SELECTORS.i2)).not.toBeEmpty();
+  const predictedR = await kv(page, SELECTORS.i2, 'predicted outcome with R');
+  const predictedB = await kv(page, SELECTORS.i2, 'predicted outcome with B');
+
   // Private basis: the number must be under 1/2 and the verdict must be a pass.
-  await encryptAndDecrypt(page, 'private');
+  await page.click(SELECTORS.decryptPrivate);
+  await expect(page.locator(SELECTORS.verdictDecrypt)).not.toBeEmpty();
   const withR = Number(await kv(page, SELECTORS.i2, 'max |e * R inverse|'));
   await expect(page.locator(SELECTORS.verdictDecrypt)).toHaveAttribute('data-verdict', 'pass');
   expect(withR, 'a passing decryption must have had its bound under 1/2').toBeLessThan(0.5);
+  expect(predictedR, 'the page predicted this decryption would succeed').toBe('will decrypt');
+  // The prediction must be exactly what the printed number implies -- re-derived
+  // here from the number, not read from the same place the prediction came from.
+  expect(withR < 0.5 ? 'will decrypt' : 'will fail').toBe(predictedR);
 
   // The threshold the page prints is the one it used.
   expect(Number(await kv(page, SELECTORS.i2, 'threshold'))).toBe(0.5);
@@ -159,6 +175,8 @@ test('C2: the decryption verdict is exactly what the printed bound predicts', as
   await page.click(SELECTORS.decryptPublic);
   await expect(page.locator(SELECTORS.verdictDecrypt)).toHaveAttribute('data-verdict', 'fail');
   expect(withB, 'a failed decryption must have had its bound at or over 1/2').toBeGreaterThan(0.5);
+  expect(predictedB, 'the page predicted this decryption would fail').toBe('will fail');
+  expect(withB < 0.5 ? 'will decrypt' : 'will fail').toBe(predictedB);
 
   // The page must name the actual cause, not just report a failure.
   const text = await page.locator(SELECTORS.verdictDecrypt).innerText();

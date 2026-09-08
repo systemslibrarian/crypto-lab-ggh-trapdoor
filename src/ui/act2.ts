@@ -77,6 +77,20 @@ export function renderBound(ct: Ciphertext, Rinv: Mat, Binv: Mat): void {
       v: withR.guaranteed ? 'yes, for any e' : 'no',
       tone: withR.guaranteed ? 'good' : 'bad',
     },
+    // The page's own PREDICTION, printed before either decrypt button is
+    // pressed. It is what makes I2 a falsifiable claim rather than a number:
+    // the claims suite drives the real decryption afterwards and requires the
+    // outcome to match what this row said it would be.
+    {
+      k: 'predicted outcome with R',
+      v: withR.predictsSuccess ? 'will decrypt' : 'will fail',
+      tone: withR.predictsSuccess ? 'good' : 'bad',
+    },
+    {
+      k: 'predicted outcome with B',
+      v: withB.predictsSuccess ? 'will decrypt' : 'will fail',
+      tone: withB.predictsSuccess ? 'good' : 'bad',
+    },
   ]);
 }
 
