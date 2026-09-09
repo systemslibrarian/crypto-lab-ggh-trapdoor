@@ -260,7 +260,14 @@ describe("C5': Klein/GPV signing defeats the same attack", () => {
     expect(d.integralityGap).toBeGreaterThan(0.35);
     // Free pre-check before the descent even runs: Klein's covariance is scalar.
     expect(d.covarianceShape).toBeLessThan(0.1);
-  });
+    // Explicit timeout, not the 5 s default. This test really does the work:
+    // 16,000 Klein signatures (rejection sampling at ~8% acceptance) plus a full
+    // fourth-moment descent that is REQUIRED to exhaust its restart budget,
+    // because failing to converge is the result being asserted. Measured 1.9-2.1 s
+    // locally; it exceeded the default on the CI runner, which is roughly 3x
+    // slower. Nothing about the assertions changed -- only the time budget, which
+    // was never sized for the work this test does.
+  }, 60_000);
 });
 
 /**
