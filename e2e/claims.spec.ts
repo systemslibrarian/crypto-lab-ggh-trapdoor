@@ -784,6 +784,86 @@ test('every disclosure is operable by keyboard and starts closed', async ({ page
   await expect(summaries.first().locator('..')).toHaveAttribute('open', '');
 });
 
+// ───────────────────────────── mobile reality ────────────────────────────────
+
+/**
+ * These are measurements, not opinions, and they run at the WCAG reflow width.
+ * The a11y gate already scans 320px for axe violations; this checks the two
+ * things axe cannot: that the document never scrolls sideways, and that every
+ * target a finger must hit is big enough to hit.
+ */
+test('mobile: no horizontal scrolling at 320px, in the busiest state', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 800 });
+  await open(page);
+  // Drive into the heaviest layout: every on-demand panel open, both matrices
+  // rendered, the stepper full.
+  await page.click('#btn-baseline');
+  await page.click('#btn-hnf');
+  await page.click(SELECTORS.encrypt);
+  await page.click(SELECTORS.decryptPrivate);
+  await page.click(SELECTORS.decryptPublic);
+  await runBreak1(page);
+  for (const d of await page.locator('details > summary').all()) await d.click();
+
+  const m = await page.evaluate(() => ({
+    vw: document.documentElement.clientWidth,
+    scrollW: document.documentElement.scrollWidth,
+  }));
+  // The document must not scroll sideways. Wide content (matrices, the
+  // ciphertext strip) is allowed to scroll INSIDE its own container -- that is
+  // what .matrix-scroll and .strip are for -- but it must never widen the page.
+  expect(m.scrollW, 'the document must never scroll horizontally').toBeLessThanOrEqual(m.vw + 1);
+});
+
+test('mobile: every non-inline target meets the 24px floor', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 800 });
+  await open(page);
+  await page.click(SELECTORS.encrypt);
+
+  const small = await page.evaluate(() => {
+    const out: Array<{ what: string; w: number; h: number; inline: boolean }> = [];
+    document.querySelectorAll('a,button,select,input,summary,[tabindex]').forEach((el) => {
+      const b = el.getBoundingClientRect();
+      if (b.width === 0 && b.height === 0) return;
+      if (b.width >= 24 && b.height >= 24) return;
+      // WCAG 2.5.8 exempts a target "in a sentence or whose size is otherwise
+      // constrained by the line-height of non-target text". The related-demos
+      // line is exactly that: prose with links in it.
+      const inline = el.closest('p.footer-links') !== null;
+      out.push({
+        what: `${el.tagName.toLowerCase()}#${(el as HTMLElement).id} "${(el.textContent || '').trim().slice(0, 20)}"`,
+        w: Math.round(b.width),
+        h: Math.round(b.height),
+        inline,
+      });
+    });
+    return out;
+  });
+
+  const violations = small.filter((t) => !t.inline);
+  expect(
+    violations,
+    `targets under 24px that are not inline-in-a-sentence: ${JSON.stringify(violations)}`,
+  ).toEqual([]);
+});
+
+test('mobile: the canvas backing store matches the device pixel ratio', async ({ page }) => {
+  // A fixed 720x360 bitmap squashed into a 241px box made the painted labels
+  // unreadable on a phone, which is why legends are HTML now and the backing
+  // store is sized from the real box.
+  await page.setViewportSize({ width: 320, height: 800 });
+  await open(page);
+  const c = await page.evaluate(() => {
+    const el = document.getElementById('basis-canvas') as HTMLCanvasElement;
+    const r = el.getBoundingClientRect();
+    return { cssW: Math.round(r.width), backingW: el.width, dpr: window.devicePixelRatio };
+  });
+  expect(c.cssW).toBeLessThanOrEqual(320);
+  expect(c.backingW).toBe(Math.round(c.cssW * Math.min(c.dpr, 3)));
+  // And the legend is real text, not painted pixels.
+  await expect(page.locator('#basis-legend .plot-legend li').first()).toBeVisible();
+});
+
 // ───────────────────────────── structural honesty ────────────────────────────
 
 test('the [hidden] attribute actually hides, in the state the claims run in', async ({ page }) => {

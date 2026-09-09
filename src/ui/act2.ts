@@ -47,12 +47,25 @@ export function clearDecryptResults(): void {
   delete cells.private;
   delete cells.public;
   byId('ciphertext-caption').textContent = '';
+  // Retiring the ciphertext retires the tab stop with it.
+  const strip = byId('ciphertext-strip');
+  strip.removeAttribute('tabindex');
+  strip.removeAttribute('role');
+  strip.removeAttribute('aria-label');
 }
 
 /** Draw the ciphertext with its error vector called out per coordinate. */
 export function renderCiphertext(ct: Ciphertext, sigma = SIGMA): void {
   const strip = byId('ciphertext-strip');
   strip.innerHTML = '';
+  // Becomes a named, keyboard-reachable scroll region only now that it has
+  // something to scroll. See the comment on the element in index.html.
+  strip.tabIndex = 0;
+  strip.setAttribute('role', 'region');
+  strip.setAttribute(
+    'aria-label',
+    'Ciphertext coordinates with the error vector highlighted',
+  );
   for (let i = 0; i < ct.c.length; i++) {
     const cell = document.createElement('div');
     const e = ct.e[i];

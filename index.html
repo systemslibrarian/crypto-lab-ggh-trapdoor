@@ -191,36 +191,37 @@
       <section class="intro" aria-labelledby="intro-h">
         <h2 id="intro-h">What is a lattice trapdoor?</h2>
         <p>
-          A lattice is the set of all points you can reach by taking whole-number steps along a
-          few fixed directions. Those directions are a <em>basis</em>. The same lattice &mdash;
-          exactly the same set of points &mdash; can be described by many different bases, and
-          that is the whole trick here: one basis can be short and nearly at right angles, while
-          another describing the identical point set is long and badly skewed.
+          A lattice is every point you can reach by whole-number steps along a few fixed
+          directions, and those directions are a <em>basis</em>. The same set of points can be
+          described by a short, nearly square basis or by a long, badly skewed one &mdash; and
+          the short one <em>is</em> the private key. That is the whole trick.
         </p>
-        <p>
-          Encrypting means stepping to a lattice point and then nudging slightly off it. To
-          decrypt you must work out which point you started from. With the short basis that is
-          easy arithmetic; with the long one the answer is wrong. Nothing is hidden in that
-          gap &mdash; the short basis <em>is</em> the private key. That is what a trapdoor is.
-        </p>
+        <details class="intro-more">
+          <summary>How that becomes encryption</summary>
+          <p>
+            Encrypting means stepping to a lattice point and then nudging slightly off it. To
+            decrypt you must work out which point you started from. The arithmetic is the same
+            either way &mdash; round to the nearest multiple of each basis vector &mdash; but
+            with the short basis it lands on the right point and with the long one it does not.
+            Nothing is hidden in that gap; the shape of the basis is the entire secret.
+          </p>
+        </details>
         <p class="scope-note">
-          Not production cryptography. This is a teaching demo: real integer matrices, real
-          lattice reduction, real attacks, at dimensions 8&ndash;60 where they run in a browser.
-          GGH was proposed at dimensions 200&ndash;400 and is broken at every dimension &mdash;
-          that is the point of the lab, not a caveat about the code.
+          Not production cryptography. Real matrices, real reduction, real attacks, at dimensions
+          8&ndash;60. GGH is broken at every dimension &mdash; that is the subject, not a caveat.
         </p>
       </section>
 
       <nav class="core-path" aria-label="The three steps of this lab">
-        <p class="core-path-lede">Three steps. Everything else on the page is optional depth.</p>
+        <p class="core-path-lede">Three steps. Everything else is optional depth.</p>
         <ol>
-          <li><a href="#act-1">Generate one lattice and compare the two bases</a></li>
-          <li><a href="#act-2">Encrypt once, then decrypt with each basis</a></li>
-          <li><a href="#act-3">Break the error&rsquo;s regularity &mdash; then take it away</a></li>
+          <li><a href="#act-1">Compare the two bases</a></li>
+          <li><a href="#act-2">Encrypt once, decrypt with each</a></li>
+          <li><a href="#act-3">Break it &mdash; then take the weakness away</a></li>
         </ol>
-        <p class="core-path-lede" style="margin-top:.6rem;font-weight:400;">
-          Then read the <a href="#act-2b">baseline</a>: at these dimensions ordinary lattice
-          reduction already breaks the public key, which is why GGH was proposed at 200&ndash;400.
+        <p class="core-path-note">
+          Then the <a href="#act-2b">baseline</a>: at these dimensions ordinary reduction already
+          breaks the public key, which is why GGH was proposed at 200&ndash;400.
         </p>
       </nav>
 
@@ -319,7 +320,12 @@
           </div>
           <div class="panel">
             <h3>Ciphertext</h3>
-            <div id="ciphertext-strip" class="strip" tabindex="0" role="region" aria-label="Ciphertext coordinates with the error vector highlighted"></div>
+            <!-- tabindex/role/aria-label are added by renderCiphertext once this
+                 actually holds a scrollable ciphertext. Empty, it was a 16px-tall
+                 focusable tab stop containing nothing: a keyboard user landed on
+                 it with no content to read, and it failed the 24px target floor
+                 for no benefit. -->
+            <div id="ciphertext-strip" class="strip"></div>
             <!-- ONE caption element, replaced in place. It used to be appended to the
                  panel on every encryption, which left several contradictory captions
                  stacked up: two saying every entry was +-3 and a third saying they

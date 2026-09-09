@@ -167,8 +167,36 @@ body {
   gap: 0.25rem;
   font-size: 0.9rem;
 }
+/* These are standalone navigation links in a list, not links inside a sentence,
+   so the inline exception to WCAG 2.5.8 does not cover them. Padding takes each
+   from 17px to over 24px without changing the layout. */
 .core-path a {
   color: var(--accent-text);
+  display: inline-block;
+  padding: 0.22rem 0;
+}
+.core-path-note {
+  margin: 0.5rem 0 0;
+  font-size: 0.85rem;
+  color: var(--text-dim) !important;
+}
+.core-path-note a {
+  color: var(--accent-text);
+}
+
+.intro-more {
+  border: none;
+  background: transparent;
+  margin: 0.4rem 0 0.7rem;
+}
+.intro-more > summary {
+  padding: 0.22rem 0;
+}
+.intro-more[open] > summary {
+  border-bottom: none;
+}
+.intro-more > *:not(summary) {
+  padding: 0;
 }
 
 /* ---------- controls ---------- */
@@ -211,9 +239,23 @@ body {
   color: var(--accent-text);
   font-weight: 700;
 }
+/* WCAG 2.5.8 target size: a range input is a real drag target, not an inline
+   link, so the 24 CSS-pixel floor applies to it. The native control renders a
+   16px-tall box, measured on Pixel 5 and at 320px, which is under the floor.
+   Padding the box to 24px keeps the thumb where it is and makes the whole
+   control grabbable. */
 input[type='range'] {
   width: 100%;
   accent-color: var(--accent);
+  min-height: 24px;
+  box-sizing: border-box;
+}
+/* Coarse pointers get the full 44px of AAA target size, which costs nothing
+   vertically. */
+@media (pointer: coarse) {
+  input[type='range'] {
+    min-height: 44px;
+  }
 }
 input[type='number'],
 select {
@@ -284,6 +326,36 @@ select {
 .control-inline {
   max-width: 28rem;
   margin-bottom: 0.9rem;
+}
+
+/* Narrow screens: the page is a long scroll of acts, so every panel's vertical
+   padding is a multiple of the number of panels. Measured at 320px the preamble
+   alone was 2,332px before Act 1 began; trimming here is worth more than it
+   looks. Nothing is hidden -- only spacing and hint size change. */
+@media (max-width: 640px) {
+  .control {
+    padding: 0.7rem 0.8rem;
+  }
+  .control-hint {
+    font-size: 0.78rem;
+    margin-top: 0.35rem;
+  }
+  .panel {
+    padding: 0.75rem 0.85rem;
+    margin-bottom: 0.75rem;
+  }
+  .intro {
+    padding: 0.85rem 0.95rem;
+  }
+  .act {
+    padding-top: 1.1rem;
+    margin-top: 1.4rem;
+  }
+  .control-grid,
+  .panel-grid,
+  .compare-grid {
+    gap: 0.75rem;
+  }
 }
 
 /* ---------- acts ---------- */
