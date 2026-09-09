@@ -1,14 +1,50 @@
 /**
  * Klein / GPV discrete-Gaussian signing -- the fix, and the negative case C5'.
  *
- * Round-off signing (sign.ts) leaks a uniform sample from the parallelepiped
+ * Round-off signing (sign.ts) leaks a sample spread over the parallelepiped
  * P(R), and the parallelepiped's corners point along the rows of R. Klein's
  * sampler (Klein, SODA 2000; Gentry-Peikert-Vaikuntanathan, STOC 2008) replaces
  * the deterministic rounding at each Gram-Schmidt coordinate with a DISCRETE
- * GAUSSIAN draw. Above a width threshold the output distribution of s - h is
- * within 2^-40 statistical distance of a SPHERICAL discrete Gaussian -- and a
- * sphere has no corners, no edges, and no fourth-moment structure. There is
- * nothing left to learn: the basis is provably hidden.
+ * GAUSSIAN draw. Above a width threshold the IDEAL sampler's output distribution
+ * for s - h is within 2^-40 statistical distance of a SPHERICAL discrete
+ * Gaussian -- and a sphere has no corners, no edges, and no fourth-moment
+ * structure.
+ *
+ * WHAT IS DEMONSTRATED HERE, AND WHAT IS CITED. The 2^-40 is the GPV/Klein
+ * statement about the ideal sampler at the smoothing parameter; it is a citation,
+ * not something this file establishes. What this file establishes is narrower and
+ * it is worth stating exactly: the Nguyen-Regev fourth-moment attack, run
+ * byte-identically against both signers through the same `SignFn` seam, finds no
+ * held-out signal against this one at n=16 on 4 keys (table below). That is a
+ * null result for ONE attack at ONE parameter set. It is not a total-variation
+ * measurement, and it does not say "there is nothing left to learn" -- no
+ * experiment can say that.
+ *
+ * TWO PLACES WHERE THIS IMPLEMENTATION IS NOT THE IDEAL SAMPLER, both measured
+ * rather than waved at:
+ *
+ *   truncation   each coordinate is drawn by rejection on [c-6s, c+6s], so the
+ *                tails are cut. `truncationTailMass` computes what that removes:
+ *                1.3e-50 to 2.1e-50 at the per-coordinate widths this key
+ *                actually uses (3.19 to 5.71 at n=16), against the 2^-40 = 9.1e-13
+ *                the citation is about. Truncation is therefore 37 orders of
+ *                magnitude away from being the weak point, and 6 is not a number
+ *                that needs defending.
+ *   fallback     after SAMPLE_Z_TRIES rejections `sampleZ` returns round(c),
+ *                which is round-off -- exactly the leak Break 2 lives on. It is
+ *                the one place where a Klein signature could carry parallelepiped
+ *                structure. MEASURED at n=16 on the key of seed 5150, 500
+ *                signatures = 8,000 coordinate draws from 96,328 candidates:
+ *                acceptance 0.0830, fallbacks 0. The per-coordinate probability
+ *                is at most (1-0.0830)^500 = 1.5e-19, and even at a width of 0.5
+ *                -- far narrower than the 3.19-5.71 this lab actually runs --
+ *                acceptance is 0.0548 and the bound is 5.9e-13. `fallbackProbability`
+ *                computes that from a measured acceptance rate, and the sampler
+ *                counts fallbacks so the UI can report the real one rather than
+ *                the bound.
+ *
+ * Both are per-coordinate statements about the sampler, not about the attack. The
+ * attack result stands on the table below and on nothing else.
  *
  * THE WIDTH IS NOT A TUNING KNOB. It is
  *
@@ -27,7 +63,9 @@
  *     klein     0.0061           0.473              0.0/16           0/4
  *
  * Per-key Klein sumA4 values straddle zero (0.0127, -0.0055, 0.0217, -0.0043).
- * That is the signature of NO structure at all, not of weak structure.
+ * That is what no structure looks like to THIS statistic at THIS sample size --
+ * a signal too small for the fourth moment to see, which is the strongest thing
+ * a null result of this shape can say.
  *
  * THE HONEST CAVEAT. Klein signatures are about 4x longer than round-off ones
  * (measured ||v||inf 121-151 against a round-off bound of 29-31), so a verifier
@@ -117,11 +155,64 @@ export function newSampleZStats(): SampleZStats {
 export const SAMPLE_Z_TRIES = 500;
 
 /**
+ * Probability that the try cap is reached for one coordinate, given a MEASURED
+ * per-try acceptance rate: (1 - acceptance)^tries.
+ *
+ * The tries are independent, so this is exact for the model and the only input
+ * it needs is a number the sampler already counts. It is a bound on the rate of
+ * the one degradation that would matter -- see the fallback note in the file
+ * header -- rather than a claim that the fallback never happens.
+ */
+export function fallbackProbability(acceptance: number, tries: number = SAMPLE_Z_TRIES): number {
+  return Math.pow(1 - acceptance, tries);
+}
+
+/**
+ * The discrete Gaussian mass `sampleZ` throws away by truncating at +-tail*sigma,
+ * as a fraction of the untruncated mass.
+ *
+ * Summed over the integers rather than approximated by the continuous tail, and
+ * maximised over 16 centre offsets in [0,1) because the mass depends slightly on
+ * where c sits between two integers. Terms beyond (tail+8)*sigma underflow to
+ * zero at every width used here, so the window is complete.
+ *
+ * At tail = 6 this is 6.6e-51 at sigma = 1 and 1.3e-50 to 2.1e-50 at the
+ * per-coordinate widths the n=16 key actually uses -- against the 2^-40 = 9.1e-13
+ * the smoothing parameter is chosen for, so truncation is not what limits the
+ * claim.
+ */
+export function truncationTailMass(sigma: number, tail = 6): number {
+  let worst = 0;
+  for (let offset = 0; offset < 16; offset++) {
+    const c = offset / 16;
+    const limit = Math.ceil((tail + 8) * sigma) + 2;
+    let inside = 0;
+    let outside = 0;
+    for (let z = -limit; z <= limit + 1; z++) {
+      const d = z - c;
+      const w = Math.exp((-Math.PI * d * d) / (sigma * sigma));
+      if (Math.abs(d) > tail * sigma) outside += w;
+      else inside += w;
+    }
+    const frac = outside / (inside + outside);
+    if (frac > worst) worst = frac;
+  }
+  return worst;
+}
+
+/**
  * One draw from the discrete Gaussian over Z with centre c and width sigma,
  * i.e. Pr[z] proportional to exp(-pi (z-c)^2 / sigma^2).
  *
- * Rejection sampling against the uniform distribution on [c-6sigma, c+6sigma];
- * six widths leaves less than 1e-9 of the mass outside.
+ * Rejection sampling against the uniform distribution on [c-6sigma, c+6sigma].
+ * Six widths is 6*sqrt(2*pi) = 15.0 standard deviations in this convention, so
+ * what is cut off is 1.3e-50 to 2.1e-50 at the widths in use, not 1e-9;
+ * `truncationTailMass` computes it for a given width instead of quoting one.
+ *
+ * On the fallback path -- the try cap reached -- this returns round(c), which is
+ * Babai round-off for that coordinate and therefore the one output of this file
+ * that could carry the structure Break 2 hunts for. It is counted in `stats` and
+ * bounded by `fallbackProbability`; measured 0 in 8,000 coordinate draws.
  */
 export function sampleZ(c: number, sigma: number, rng: Rng, stats?: SampleZStats): number {
   const lo = Math.ceil(c - 6 * sigma);
@@ -142,14 +233,16 @@ export function sampleZ(c: number, sigma: number, rng: Rng, stats?: SampleZStats
 
 /**
  * Klein/GPV signature: a lattice point s in L(R) with s - h distributed as a
- * spherical discrete Gaussian of width sigma.
+ * spherical discrete Gaussian of width sigma (up to the truncation and fallback
+ * accounted for in the file header).
  *
  * Sequential, from the LAST Gram-Schmidt coordinate down to the first. At step i
  * the residual centre is d = <c, b*_i> / ||b*_i||^2 and the width in that integer
  * coordinate is sigma / ||b*_i|| -- narrow directions get narrow draws, which is
  * exactly what makes the OUTPUT spherical even though the basis is not. The
  * per-coordinate widths are the only place R enters, and the smoothing condition
- * is what stops them from being readable in the output.
+ * is what makes the cited theorem apply to them; what is measured here is that
+ * the fourth-moment attack cannot read them (see the header).
  */
 export function signKlein(
   h: Vec,

@@ -95,10 +95,11 @@ const SCOPE: string[] = [
   'This lab runs at dimensions 8&ndash;60 so everything finishes in a browser tab. GGH was ' +
     'proposed at 200&ndash;400, and the published challenges were at exactly those sizes.',
   'It uses a larger diagonal shift <code>k</code> than the 1997 paper does. With the ' +
-    "paper's <code>k &asymp; &radic;n&middot;l</code> and <code>&sigma; = 3</code>, the " +
-    'legitimate owner fails to decrypt 74% of the time at n=8, because &sigma; in the paper is ' +
-    'derived from the basis and only lands near 3 at the paper&rsquo;s own dimensions. ' +
-    '&sigma; = 3 is kept because <code>2&sigma; = 6</code> is what Break 1 runs in.',
+    "paper's own rule <code>k = 4&middot;&lceil;&radic;n&rceil;</code> and <code>&sigma; = 3</code>, " +
+    'the legitimate owner fails to decrypt 56&ndash;57% of the time at n=8, because &sigma; in the ' +
+    'paper is derived from the basis and only lands near 3 at the paper&rsquo;s own dimensions of ' +
+    '200&ndash;400. <code>&sigma; = 3</code> is kept because <code>2&sigma; = 6</code> is what ' +
+    'Break 1 runs in.',
   'LLL here is real and runs in the browser. BKZ is not implemented; Nguyen needed BKZ-20 and ' +
     'pruned BKZ-60 for the large challenges.',
   'NTRUSign is not built. It fell to the same Nguyen&ndash;Regev descent as Act 4 &mdash; that ' +
@@ -174,10 +175,11 @@ export function renderAct5(): void {
   scope.appendChild(ul);
   root.appendChild(scope);
 
-  const cites = document.createElement('div');
+  const cites = document.createElement('details');
   cites.className = 'panel';
-  const ch = document.createElement('h3');
-  ch.textContent = 'Sources';
+  cites.id = 'sources';
+  const ch = document.createElement('summary');
+  ch.textContent = 'Sources: the five papers this lab is built from';
   cites.appendChild(ch);
   const ol = document.createElement('ul');
   for (const c of CITATIONS) {

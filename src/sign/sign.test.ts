@@ -3,7 +3,10 @@ import { gghKeygen, paperK } from '../lattice/keygen';
 import { inverse, makeRng, maxAbsVec, randInt, vecMat } from '../lattice/matrix';
 import type { Mat } from '../lattice/types';
 import {
+  DEFAULT_H_RANGE,
   collectLeaks,
+  leakFourierBound,
+  leakUniformityBound,
   makeRoundOffSigner,
   parallelepipedCoords,
   randomH,
@@ -35,7 +38,50 @@ describe('round-off signing', () => {
     expect(worstFrac).toBeLessThan(1e-9);
   });
 
-  it('leaks a uniform sample from the fundamental parallelepiped of R', () => {
+  it('leaks a sample that is equidistributed over P(R) only approximately, by a measured amount', () => {
+    // The claim being pinned: a finite hash box makes x APPROXIMATELY uniform,
+    // not exactly. The approximation is a number, so it is asserted as one.
+    const { key: k } = key(12, 20260908);
+    const Rinv = inverse(k.R);
+    const e0 = new Float64Array(12);
+    e0[0] = 1;
+    // Global bound, every nonzero frequency at once, at the shipped range.
+    expect(leakUniformityBound(k.R, DEFAULT_H_RANGE)).toBeLessThan(0.01);
+    expect(leakUniformityBound(k.R, DEFAULT_H_RANGE)).toBeGreaterThan(0);
+    // The frequencies a per-coordinate statistic can see are far smaller.
+    expect(leakFourierBound(Rinv, e0, DEFAULT_H_RANGE)).toBeLessThan(1e-20);
+    // It is the box size that buys this: both bounds scale as 1/range, and at a
+    // range comparable with the basis they say nothing at all.
+    expect(leakFourierBound(Rinv, e0, 10)).toBeGreaterThan(0.1);
+    expect(leakUniformityBound(k.R, 1)).toBeGreaterThan(1);
+    expect(leakUniformityBound(k.R, DEFAULT_H_RANGE) * 1e4).toBeCloseTo(
+      leakUniformityBound(k.R, 1),
+      6,
+    );
+  });
+
+  it('stops filling the parallelepiped when the hash box shrinks to the basis', () => {
+    // The caveat with teeth: at range = 1 the hashed point never leaves one cell,
+    // so x is just -y and E|x_i| collapses. Measured 0.0396 at n=12 against 0.25.
+    const { key: k } = key(12, 20260908);
+    const Rinv = inverse(k.R);
+    const meanAbsX = (range: number): number => {
+      const rng = makeRng(555);
+      let sum = 0;
+      let count = 0;
+      for (let t = 0; t < 2000; t++) {
+        const h = randomH(12, rng, range);
+        const x = parallelepipedCoords(h, signRoundOff(h, k.R, Rinv), Rinv);
+        for (const xi of x) { sum += Math.abs(xi); count++; }
+      }
+      return sum / count;
+    };
+    // se of E|x| over 24000 uniform draws is 1/4 * sqrt(1/3) / sqrt(24000) = 9.3e-4.
+    expect(meanAbsX(DEFAULT_H_RANGE)).toBeCloseTo(0.25, 2);
+    expect(meanAbsX(1)).toBeLessThan(0.15);
+  });
+
+  it('leaks a sample from the fundamental parallelepiped of R', () => {
     const { key: k, rng, Rinv } = key(12, 424242);
     let maxCoord = 0;
     let meanAbs = 0;

@@ -87,17 +87,21 @@ export interface Ciphertext {
  * Invariant I2 for one ciphertext, under one basis.
  *
  * Babai round-off with a basis whose inverse is `basisInv` recovers the correct
- * lattice point if and only if `actual < 0.5`. This is an exact iff, not a
- * heuristic bound, and it was measured to hold with zero mismatches over 5,600
- * ciphertexts. `worstCase` is the maximum of `actual` over EVERY error vector in
- * {+sigma,-sigma}^n, so `worstCase < 0.5` means decryption provably cannot fail.
+ * lattice point whenever `actual < 0.5`, and never when `actual > 0.5`. At
+ * exactly 0.5 the outcome depends on the rounding tie rule and on the lattice
+ * point's integer coordinate, which this object does not carry -- see
+ * `decryptBound` and `roundOffSucceedsExactly` in roundoff.ts, where both
+ * outcomes are constructed deliberately. Measured with zero mismatches, and zero
+ * ties, over 5,600 ciphertexts. `worstCase` is the maximum of `actual` over
+ * EVERY error vector in {+sigma,-sigma}^n, so `worstCase < 0.5` means decryption
+ * provably cannot fail.
  */
 export interface DecryptBound {
   /** max_j |(e * basisInv)_j| for the error actually used. */
   readonly actual: number;
   /** sigma * max_j sum_i |basisInv[i][j]| -- the max over all e in {+-sigma}^n. */
   readonly worstCase: number;
-  /** actual < 0.5 */
+  /** actual < 0.5 -- sufficient for success, not necessary at the boundary. */
   readonly predictsSuccess: boolean;
   /** worstCase < 0.5 -- decryption cannot fail for ANY error vector. */
   readonly guaranteed: boolean;

@@ -8,6 +8,12 @@ export const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'];
 
 /** A phone-width viewport, for the WCAG 1.4.10 reflow half of the gate. */
 export const NARROW = { width: 380, height: 800 };
+/**
+ * The WCAG 2.1 reference width for reflow (1.4.10). 380px was the lab's only
+ * narrow scan, which left the actual normative width untested; an external audit
+ * flagged it. 320 is the width the success criterion names.
+ */
+export const REFLOW_320 = { width: 320, height: 800 };
 
 /**
  * Shared machinery for the WCAG gate.

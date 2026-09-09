@@ -4,6 +4,7 @@ import {
   driveAllStates,
   expectBaselineNotStale,
   NARROW,
+  REFLOW_320,
   reportCollected,
   watchPageErrors,
 } from './gate';
@@ -160,6 +161,22 @@ for (const theme of ['dark'] as const) {
     await page.setViewportSize(NARROW);
     await boot(page, theme);
     await driveAllStates(page, `${theme} @380px`);
+    expect(errors, errors.join('\n')).toEqual([]);
+    expectBaselineNotStale();
+    reportCollected();
+  });
+
+  /**
+   * 320 CSS pixels is the width WCAG 2.1 SC 1.4.10 Reflow actually names. The
+   * lab scanned 380 and 1440 but never the normative width, so the criterion it
+   * claims to meet was the one width not being checked.
+   */
+  test(`no WCAG A/AA violations in ${theme} theme at the 320px reflow width`, async ({ page }) => {
+    test.setTimeout(1_800_000);
+    const errors = watchPageErrors(page);
+    await page.setViewportSize(REFLOW_320);
+    await boot(page, theme);
+    await driveAllStates(page, `${theme} @320px`);
     expect(errors, errors.join('\n')).toEqual([]);
     expectBaselineNotStale();
     reportCollected();

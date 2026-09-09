@@ -47,8 +47,21 @@ export type Break2Response =
       kind: 'done';
       ok: boolean;
       reason: string;
-      signaturesConsumed: number;
-      totalSignaturesObserved: number;
+      /** OUTCOME 1, attacker-observable: the public verifier accepted the forgeries. */
+      forgeryOk: boolean;
+      /**
+       * OUTCOME 2, LAB-ONLY: the candidate really is R up to sign and permutation.
+       * An attacker cannot compute this. null means it was not scored.
+       */
+      groundTruthRecovered: boolean | null;
+      /** How many candidate rows matched a secret row, for display. */
+      groundTruthMatched: number | null;
+      /** Signatures the descent trained on. */
+      trainingSignatures: number;
+      /** Signatures withheld from the descent, used only for scoring. */
+      heldOutSignatures: number;
+      /** What the victim actually published: training + held out. */
+      totalObserved: number;
       capN: number;
       /** Rows recovered, for the plot. Null when the descent never completed. */
       rows: number[][] | null;
@@ -108,6 +121,11 @@ self.onmessage = (ev: MessageEvent<Break2Request>) => {
       rng,
       startN: msg.startN,
       capN: msg.capN,
+      // LAB SCORING ONLY. The attack never consults this -- break2.test.ts
+      // deep-equals the whole result with and without it to prove that. It is
+      // here so the page can show the second, independent outcome: whether the
+      // forging basis is actually the secret one.
+      groundTruthR: R,
       onProgress: (progress) => {
         const out: Break2Response = { kind: 'progress', progress };
         (self as unknown as Worker).postMessage(out);
@@ -118,8 +136,12 @@ self.onmessage = (ev: MessageEvent<Break2Request>) => {
       kind: 'done',
       ok: result.ok,
       reason: result.reason,
-      signaturesConsumed: result.signaturesConsumed,
-      totalSignaturesObserved: result.totalSignaturesObserved,
+      forgeryOk: result.forgeryOk,
+      groundTruthRecovered: result.groundTruthRecovered,
+      groundTruthMatched: result.groundTruthMatch ? result.groundTruthMatch.matched : null,
+      trainingSignatures: result.trainingSignatures,
+      heldOutSignatures: result.heldOutSignatures,
+      totalObserved: result.totalObserved,
       capN: result.capN,
       rows: fromMat(result.Rhat),
       discriminators: {

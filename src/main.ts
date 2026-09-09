@@ -18,10 +18,12 @@ import { inverse, makeRng } from './lattice/matrix';
 import { encrypt, encryptNonCongruent, randomMessage } from './lattice/roundoff';
 import { byId, retire } from './ui/dom';
 import { renderAct1 } from './ui/act1';
-import { renderBound, renderCiphertext, runDecrypt } from './ui/act2';
+import { clearDecryptResults, renderBound, renderCiphertext, runDecrypt } from './ui/act2';
 import { clearBreak1, resetBreak1, stepBreak1 } from './ui/act3';
 import { cancelBreak2, initBreak2, runBreak2InWorker } from './ui/act4';
 import { renderAct5 } from './ui/act5';
+import { clearHnfPanel, renderHnfPanel } from './ui/hnf-panel';
+import { clearBaselinePanel, renderBaselinePanel } from './ui/baseline-panel';
 
 /** Which error distribution the encryptor draws from. */
 type ErrorMode = 'pm3' | 'one-bad' | 'uniform';
@@ -49,13 +51,23 @@ function readMode(): ErrorMode {
   return byId<HTMLSelectElement>('sigma-select').value as ErrorMode;
 }
 
-/** Clear everything downstream of the key. Called on every input change. */
-function retireDownstream(): void {
+/**
+ * Retire everything that depends on the ENCRYPTION experiment: the ciphertext,
+ * the bound, the decryption results and Break 1.
+ *
+ * Deliberately does NOT touch Act 4. Break 2 attacks a different scheme with a
+ * different key, and the error distribution is a property of GGH encryption
+ * only, so cancelling a running descent because the encryption error mode
+ * changed would be retiring a result that is still perfectly valid.
+ */
+function retireEncryptionExperiment(): void {
   byId('ciphertext-strip').innerHTML = '';
   byId('i2-bound').innerHTML = '';
-  retire(byId('verdict-decrypt'), byId('verdict-break1'), byId('verdict-break2'));
+  // Both persistent per-basis result cells go too, or a stale DECRYPTED would
+  // survive a key change and be read as applying to the new ciphertext.
+  clearDecryptResults();
+  retire(byId('verdict-decrypt'), byId('verdict-break1'));
   clearBreak1();
-  cancelBreak2();
   if (state) state.ct = null;
   byId<HTMLButtonElement>('btn-decrypt-private').disabled = true;
   byId<HTMLButtonElement>('btn-decrypt-public').disabled = true;
@@ -84,7 +96,17 @@ function keygen(): void {
     mode,
   };
 
-  retireDownstream();
+  retireEncryptionExperiment();
+  // A new key or dimension DOES invalidate Act 4 -- unlike the error mode, which
+  // Act 4's scheme does not use at all.
+  retire(byId('verdict-break2'));
+  // Silent: the key this run belonged to is being replaced, so announcing
+  // "cancelled" would describe a run the reader is no longer looking at.
+  cancelBreak2(true);
+  // The HNF exhibit is computed on demand rather than on every keygen: it is
+  // BigInt work, ~68 ms at n=60, and most readers will not open it.
+  clearHnfPanel();
+  clearBaselinePanel();
   renderAct1(key);
   // The dimension is stamped on the proof so a re-key has a completion signal:
   // the four exact checks render identically for every key, so without this
@@ -139,9 +161,15 @@ function wire(): void {
     const next = readMode();
     if (state && state.mode === next) return;
     if (state) state.mode = next;
-    retireDownstream();
+    retireEncryptionExperiment();
   });
   byId('btn-keygen').addEventListener('click', keygen);
+  byId('btn-hnf').addEventListener('click', () => {
+    if (state) renderHnfPanel(state.key);
+  });
+  byId('btn-baseline').addEventListener('click', () => {
+    if (state) renderBaselinePanel(state.key, state.seed);
+  });
   byId('btn-encrypt').addEventListener('click', doEncrypt);
   byId('btn-decrypt-private').addEventListener('click', () => {
     if (state?.ct) runDecrypt(state.ct, state.key, state.Rinv, state.Binv, 'private');
@@ -161,7 +189,10 @@ function wire(): void {
   byId('btn-break2-gaussian').addEventListener('click', () => {
     if (state) runBreak2InWorker(state.sigKey, state.seed, 'klein');
   });
-  byId('btn-break2-cancel').addEventListener('click', cancelBreak2);
+  // Wrapped, not passed directly: addEventListener would hand the MouseEvent to
+  // cancelBreak2's `silent` parameter, which is truthy, and the CANCELLED status
+  // would never be shown.
+  byId('btn-break2-cancel').addEventListener('click', () => cancelBreak2());
 }
 
 function boot(): void {

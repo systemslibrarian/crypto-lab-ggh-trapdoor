@@ -7,13 +7,20 @@
  * the second, "almost rectangular": pick E uniform in {-l..l}^(n x n), set
  * R = k*I + E. The paper says "we get the best parameters when k is about
  * sqrt(n)*l", and its own instantiation (section 5.2) is R = 4*ceil(sqrt(n))*I +
- * rand(+-4), i.e. k = sqrt(n)*l with l = 4.
+ * rand(+-4) -- that is k = l*ceil(sqrt(n)) with l = 4, a CEILING, not a rounding.
+ * `paperK` implements that literally: it is 12 at n=8 where round(sqrt(n)*l) is
+ * 11. The two rules agree exactly when ceil(sqrt(n)) - sqrt(n) <= 0.5/l, which
+ * at l=4 covers n = 16 and 24 but not n = 8, 12, 32 or 60 -- so "round" is not a
+ * harmless paraphrase of the cited formula.
  *
- * We keep l = 4 and sigma = 3 but we DO NOT use k = round(sqrt(n)*l). Measured,
+ * We keep l = 4 and sigma = 3 but we DO NOT use k = l*ceil(sqrt(n)). Measured,
  * that rule does not decrypt at the dimensions this lab teaches at: the honest
- * owner of the private key fails to recover the message 74% of the time at n=8
- * and 10.5% of the time at n=32, because invariant I2 is violated. That is not a
- * bug in GGH -- sigma in the paper is DERIVED from the basis
+ * owner of the private key fails to recover the message 56-57% of the time at
+ * n=8 and 2.7-3.3% of the time at n=32 (40 keys x 100 ciphertexts per seed,
+ * three seeds), because invariant I2 is violated. The rate is not monotone in n
+ * -- 18.5-21.4% at n=12 against 32.5-39.3% at n=16 -- because the ceiling steps:
+ * n=12 and n=16 both get k=16, and only the larger dimension has to survive it.
+ * That is not a bug in GGH -- sigma in the paper is DERIVED from the basis
  * (sigma_i = (gamma_i * sqrt(8 ln(2n/eps)))^-1, section 5.2) and only happens to
  * come out near 3 at the paper's dimensions of 200-400. The published challenges
  * used sigma = 3 exactly. At n = 8..60, sigma = 3 with k ~ sqrt(n)*l is simply
@@ -27,11 +34,11 @@
  *
  * The additive 4*l term is what flattens the margin across the range -- a pure
  * multiple of l*sqrt(n) cannot, because the required multiple runs from 2.46x at
- * n=8 down to 1.74x at n=60. With this rule the worst-case I2 bound is 0.121 to
- * 0.136 for every n from 8 to 60 -- a margin of 3.7x to 4.1x under the 0.5
- * threshold -- so decryption provably cannot fail for ANY error in {+-3}^n.
- * Measured: 100% decryption over 1,400 ciphertexts, versus 26% at n=8 under the
- * paper's rule.
+ * n=8 down to 1.74x at n=60. With this rule the worst-case I2 bound is 0.119 to
+ * 0.126 across n = 8, 12, 16, 24, 32, 60 -- a margin of 4.0x to 4.2x under the
+ * 0.5 threshold -- so decryption provably cannot fail for ANY error in {+-3}^n.
+ * Measured: 0 failures in 4,000 ciphertexts at each of those six dimensions
+ * (24,000 in all), against 43% success at n=8 under the paper's rule.
  *
  * This trades notional security for a decryption guarantee, which is the right
  * trade for a teaching lab and the wrong one for a scheme. GGH is broken anyway
@@ -49,16 +56,36 @@ export const DEFAULT_L = 4;
 export const SIGMA = 3;
 
 /**
+ * The one error magnitude Break 1's mod-2*sigma arithmetic is implemented for.
+ *
+ * `mod6.ts` solves the congruence over GF(2) and GF(3) and lifts by CRT, which
+ * is 2*sigma = 6 and nothing else. Any API that takes a sigma and then calls
+ * that path should take THIS type, so the signature cannot promise a generality
+ * the code does not have. See the report note in break1.ts's `Break1Options`.
+ */
+export type BreakableSigma = typeof SIGMA;
+
+/**
  * The diagonal shift. See the file header for why this is not GGH's
- * k = round(sqrt(n)*l).
+ * k = l*ceil(sqrt(n)).
  */
 export function gghK(n: number, l: number = DEFAULT_L): number {
   return Math.ceil(2 * l * Math.sqrt(n)) + 4 * l;
 }
 
-/** GGH's own rule, kept so the UI can show what it does to the I2 bound. */
+/**
+ * GGH's own rule, exactly as section 5.2 states it: R = 4*ceil(sqrt(n))*I with
+ * l = 4, i.e. k = l*ceil(sqrt(n)). Kept so the UI can show what it does to the
+ * I2 bound, and used by the signature acts, which need no decryption guarantee.
+ *
+ * The ceiling is not decoration: at n=8 it gives 12 where round(sqrt(n)*l) gives
+ * 11, and the two coincide only when ceil(sqrt(n)) - sqrt(n) <= 0.5/l (n = 16
+ * and 24 at l=4, not n = 8, 12, 32 or 60). This helper used to round;
+ * every measured number in this file that mentions the paper's rule was re-taken
+ * against the ceiling version.
+ */
 export function paperK(n: number, l: number = DEFAULT_L): number {
-  return Math.round(Math.sqrt(n) * l);
+  return l * Math.ceil(Math.sqrt(n));
 }
 
 /**

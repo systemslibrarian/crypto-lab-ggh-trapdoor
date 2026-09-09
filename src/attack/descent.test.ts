@@ -13,6 +13,7 @@ import {
   randomUnitVector,
   recoverDirections,
   restartBudget,
+  stepCoefficients,
 } from './descent';
 
 /** An exact orthonormal frame -- the thing the descent is supposed to find. */
@@ -50,10 +51,24 @@ describe('the step rule', () => {
     expect(powerIterationCoefficient(0.7)).toBeCloseTo(0.0248, 4);
     expect(powerIterationCoefficient(DEFAULT_DELTA)).toBeCloseTo(1.2, 12);
     expect(powerIterationCoefficient(11.5)).toBeCloseTo(9.2, 12);
-    // Singular at delta = 12: the u term vanishes entirely.
+    // The RATIO has a pole at 12 because its denominator, the u coefficient, is
+    // exactly zero there. The step itself does not: it is 0.4 * sum a^3 q, a pure
+    // cubic power iteration. See 'converges at delta = 12' below.
     expect(Number.isFinite(powerIterationCoefficient(12))).toBe(false);
-    // Above it the sign flips and the iteration climbs instead of descending.
+    expect(stepCoefficients(12).uTerm).toBe(0);
+    expect(stepCoefficients(12).cubicTerm).toBeCloseTo(0.4, 12);
+    // Above 12 the u term reverses sign, so the step subtracts the previous
+    // iterate instead of adding it. Still a defined update, and measured, still
+    // convergent just above 12 -- it dies between 13 and 15, not at 12.
+    expect(stepCoefficients(13).uTerm).toBeLessThan(0);
     expect(powerIterationCoefficient(13)).toBeLessThan(0);
+    // The factorisation is only legal where the u term is positive, which is
+    // exactly the range where c is a usable description of the step.
+    for (const d of [0.7, 3, 9, 11.5]) {
+      const { uTerm, cubicTerm } = stepCoefficients(d);
+      expect(uTerm).toBeGreaterThan(0);
+      expect(cubicTerm / uTerm).toBeCloseTo(powerIterationCoefficient(d), 12);
+    }
   });
 
   it('budgets 10n restarts, comfortably above the coupon-collector estimate n*H_n', () => {
@@ -94,6 +109,36 @@ describe('descent on the sphere', () => {
     expect(slow.converged).toBe(false);
     expect(bestAlignment(fast.u, Q)).toBeGreaterThan(bestAlignment(slow.u, Q));
     expect(bestAlignment(fast.u, Q)).toBeGreaterThan(0.99);
+  });
+
+  it('converges at delta = 12, where the factored coefficient has its pole', () => {
+    // The claim under test: the pole is in c = (delta/30)/(1 - delta/12), not in
+    // the update. At delta = 12 the u term is gone and the step is the pure cubic
+    // power iteration, which converges faster than the shipped delta = 9 -- so a
+    // non-finite c must not be read as a broken iteration.
+    expect(Number.isFinite(powerIterationCoefficient(12))).toBe(false);
+    for (const seed of [11, 12, 13]) {
+      const twelve = descend(W, N, n, makeRng(seed), { delta: 12 });
+      const nine = descend(W, N, n, makeRng(seed), { delta: DEFAULT_DELTA });
+      expect(twelve.converged).toBe(true);
+      expect(bestAlignment(twelve.u, Q)).toBeGreaterThan(0.99);
+      expect(sumA4FromMom4(twelve.mom4)).toBeGreaterThan(0.95);
+      // Fastest of the three: fewer iterations than delta = 9, same answer.
+      expect(twelve.iters).toBeLessThan(nine.iters);
+      expect(bestAlignment(twelve.u, Q)).toBeCloseTo(bestAlignment(nine.u, Q), 6);
+    }
+  });
+
+  it('dies above 12, but not until well above it', () => {
+    // Measured (n=16 sweep in the header): fine at 12.1, degraded at 13, dead at
+    // 15. The same shape holds here at n=8: just past the pole it still lands on
+    // a frame row, and far past it there is nothing left to converge to.
+    const justPast = descend(W, N, n, makeRng(21), { delta: 12.1 });
+    expect(justPast.converged).toBe(true);
+    expect(bestAlignment(justPast.u, Q)).toBeGreaterThan(0.99);
+    const farPast = descend(W, N, n, makeRng(21), { delta: 15, maxIter: 250 });
+    expect(farPast.converged).toBe(false);
+    expect(bestAlignment(farPast.u, Q)).toBeLessThan(0.9);
   });
 
   it('does not converge at all at delta = 0.3', () => {

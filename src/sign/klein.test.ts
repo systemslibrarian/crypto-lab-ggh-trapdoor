@@ -5,6 +5,8 @@ import { randomH, roundOffBoundInf, signRoundOff, signatureLeak } from './sign';
 import { publicKey, verify } from './verify';
 import {
   KLEIN_EPS,
+  SAMPLE_Z_TRIES,
+  fallbackProbability,
   kleinBoundInf,
   kleinFactor,
   kleinSigma,
@@ -13,6 +15,7 @@ import {
   newSampleZStats,
   sampleZ,
   signKlein,
+  truncationTailMass,
 } from './klein';
 
 describe('the smoothing parameter', () => {
@@ -64,6 +67,57 @@ describe('the discrete Gaussian sampler', () => {
     expect(acceptance).toBeGreaterThan(0.05);
     expect(acceptance).toBeLessThan(0.2);
     expect(stats.fallbacks).toBe(0);
+    // ...and "never fires" is a rate, not a promise: this is the bound that goes
+    // with the count, computed from the acceptance just measured.
+    expect(fallbackProbability(acceptance)).toBeLessThan(1e-15);
+  });
+
+  it('truncates at 6 sigma, which removes ~1e-50 of the mass and not 2^-40 of it', () => {
+    // The 2^-40 in the file header is a citation about the IDEAL sampler. This is
+    // one of the two places the implementation departs from it, and the departure
+    // is 37 orders of magnitude smaller than the thing being cited -- so it is
+    // truncation that is not the weak point, and that has to be shown, not said.
+    for (const width of [0.5, 1, 3.19, 5.71, 60]) {
+      const mass = truncationTailMass(width, 6);
+      expect(mass).toBeGreaterThan(0);
+      expect(mass).toBeLessThan(1e-45);
+      expect(mass).toBeLessThan(KLEIN_EPS * 1e-30);
+    }
+    // A shorter tail cuts more: the function is measuring something real.
+    expect(truncationTailMass(3, 2)).toBeGreaterThan(truncationTailMass(3, 6));
+    expect(truncationTailMass(3, 1)).toBeGreaterThan(1e-6);
+  });
+
+  it('falls back to round(c) when the cap is reached -- the one round-off leak left', () => {
+    // Forced, not waited for: at sigma = 1e-3 with c = 0.5 the only candidate the
+    // window contains is 500 sigma away, so every try is rejected and the
+    // fallback fires deterministically. What it returns is exactly Babai
+    // round-off for that coordinate, which is the leak Break 2 lives on -- so the
+    // degradation is visible in `stats` rather than silent.
+    const stats = newSampleZStats();
+    const z = sampleZ(0.5, 1e-3, makeRng(4), stats);
+    expect(stats.fallbacks).toBe(1);
+    expect(stats.accepts).toBe(0);
+    expect(stats.draws).toBe(SAMPLE_Z_TRIES);
+    expect(z).toBe(1); // rnd(0.5), half away from zero
+    expect(fallbackProbability(0)).toBe(1);
+  });
+
+  it('counts zero fallbacks over a realistic signing workload, and bounds the rate', () => {
+    // The measured half of the header's fallback note, reproduced exactly: the
+    // key of seed 5150 at n=16, 500 signatures = 8,000 coordinate draws.
+    const n = 16;
+    const k = gghKeygen(n, { rng: makeRng(5150), k: paperK(n) });
+    const sigma = kleinSigma(k.R);
+    const stats = newSampleZStats();
+    const sign = makeKleinSigner(k.R, makeRng(99991), sigma, stats);
+    const signatures = 500;
+    for (let t = 0; t < signatures; t++) sign(randomH(n, makeRng(1000 + t)));
+    expect(stats.accepts).toBe(signatures * n);
+    expect(stats.fallbacks).toBe(0);
+    const acceptance = stats.accepts / stats.draws;
+    expect(acceptance).toBeCloseTo(0.083, 2);
+    expect(fallbackProbability(acceptance)).toBeLessThan(1e-15);
   });
 });
 

@@ -1,0 +1,46 @@
+# Citation File Format 1.2.0 -- https://citation-file-format.github.io
+#
+# Why this file exists: the lab publishes measured numbers (I1 headroom, I2
+# worst-case bounds, break timings) and teaching material that other people
+# quote. A quote is only checkable if the reader can get back to the exact thing
+# that produced it, so the repository says how it wants to be named rather than
+# leaving each citer to invent one.
+#
+# `version` tracks package.json. There is no `date-released` or `commit` field
+# because this lab has no tagged release yet -- adding either would be a claim
+# about an artifact that does not exist. Cite the commit you actually read.
+cff-version: 1.2.0
+message: >-
+  If you use this demo, its figures, or its measured numbers, please cite it as
+  below, and name the commit you read -- the numbers are regenerated, not
+  hand-maintained.
+title: "Crypto Lab: GGH Trapdoor"
+abstract: >-
+  An educational browser demo of the GGH lattice trapdoor. One lattice is shown
+  under two bases -- a short, nearly orthogonal private basis R and a long,
+  skewed public basis B = U*R -- and the demo proves they span the same lattice
+  over the integers, displays the round-off decryption bound per ciphertext, and
+  then runs the two historical attacks that ended the scheme: Nguyen's mod-2σ
+  reduction (CRYPTO 1999) against GGH encryption, and the Nguyen–Regev
+  learning-a-parallelepiped attack (EUROCRYPT 2006), a fourth-moment descent,
+  against the GGH signature design. Every "attack succeeded" verdict is decided
+  by the real decryptor or the real signature verifier rather than by comparison
+  with the secret. This is a teaching implementation, not production
+  cryptography.
+type: software
+authors:
+  - given-names: Paul
+    family-names: Clark
+    alias: systemslibrarian
+version: 0.1.0
+license: MIT
+repository-code: "https://github.com/systemslibrarian/crypto-lab-ggh-trapdoor"
+url: "https://systemslibrarian.github.io/crypto-lab-ggh-trapdoor/"
+keywords:
+  - cryptography
+  - lattice
+  - GGH
+  - trapdoor
+  - LLL
+  - cryptanalysis
+  - educational

@@ -74,7 +74,8 @@
  * anything better: -q_i minimises the objective exactly as well as q_i, and the
  * restarts find rows in whatever order their basins come up. `matchUpToSignPerm`
  * checks that with entrywise integer equality and no tolerance. It is a SCORING
- * function -- it uses the secret and is used for display.
+ * function -- it uses the secret, so only the LAB can run it, and it is surfaced
+ * as `groundTruthRecovered`. It never decides anything.
  *
  * INVARIANT I5. The pass/fail test is the REAL verifier. `runBreak2` assembles
  * Rhat from the recovered rows, signs FRESH messages with it, and requires
@@ -83,6 +84,36 @@
  * partial recovery forged 0 times out of 2400. The two outcomes are perfectly
  * binary, which is what makes the forgery test a real referee rather than a
  * formality.
+ *
+ * TWO OUTCOMES, AND THEY ARE NOT THE SAME OUTCOME. That 2400/2400 says the two
+ * agreed on every candidate THIS descent produced; it is not a theorem that they
+ * must, and the lab must not render one as the other:
+ *
+ *   forgeryOk             the public verifier accepted every fresh signature made
+ *                         with the candidate. ATTACKER-OBSERVABLE -- it needs only
+ *                         B and the published bound. This is what `ok` has always
+ *                         meant and still means.
+ *   groundTruthRecovered  the candidate IS the rows of R up to sign and
+ *                         permutation. LAB-ONLY: computing it requires the secret,
+ *                         so no attacker can, and it NEVER gates the attack. It is
+ *                         null unless `groundTruthR` was handed in for scoring.
+ *
+ * They come apart, and not hypothetically. MEASURED here at n=8, k=paperK, four
+ * keys: plain LLL on the PUBLIC basis returns a basis of the same lattice (|det|
+ * ratio 1.000000000000004 or better) that forged 20/20 signatures accepted under
+ * the victim's own published bound, while matching only 1, 2, 3 and 4 of the 8
+ * rows of R up to sign. A DIFFERENT good basis forges perfectly well without being
+ * the secret rows, so "the verifier accepted the forgeries" proves forgery
+ * capability and nothing more. Saying "secret basis recovered" needs the second
+ * check, which is why it is computed here rather than left in the tests.
+ *
+ * SAMPLE ACCOUNTING. Every rung draws N TRAINING signatures for the descent AND a
+ * matching N HELD-OUT signatures the descent never sees, so a rung reported as
+ * N=8000 cost the victim 16000 published signatures, not 8000. The result and
+ * every rung name all three -- `trainingSignatures`, `heldOutSignatures`,
+ * `totalObserved` = 2N -- and `signaturesConsumed` is kept only as the old name
+ * for the training count of the rung that finished. Nothing here ever reports
+ * training as if it were the total.
  */
 
 import type { Mat, Rng, Vec } from '../lattice/types';
@@ -180,10 +211,13 @@ export interface MatchResult {
  *
  * USES THE SECRET. This is a scoring and display function, never a success test:
  * invariant I5 says the pass/fail decision belongs to the real verifier, and
- * `runBreak2` decides on the forgery. Greedy is a genuine perfect matching here
- * because the exact-equality relation makes each candidate match at most one row
- * (two distinct rows cannot both equal +-c), so there is no ordering that does
- * better.
+ * `runBreak2` decides on the forgery. `runBreak2` calls this itself when it is
+ * handed `groundTruthR`, and reports the verdict as `groundTruthRecovered` --
+ * clearly labelled lab-only, because an attacker cannot compute it.
+ *
+ * Greedy is a genuine perfect matching here because the exact-equality relation
+ * makes each candidate match at most one row (two distinct rows cannot both equal
+ * +-c), so there is no ordering that does better.
  */
 export function matchUpToSignPerm(cands: Mat, R: Mat): MatchResult {
   const n = R.length;
@@ -273,10 +307,27 @@ export interface Discriminators {
   readonly covarianceShape: number;
 }
 
-/** One rung of the signature ladder. */
+/**
+ * One rung of the signature ladder.
+ *
+ * The three sample counts are all named, because a rung costs the victim TWICE
+ * what the descent consumed: `totalObserved` = `trainingSignatures` +
+ * `heldOutSignatures`, and the hold-out is drawn on every rung whether or not the
+ * rung succeeds.
+ */
 export interface Break2Attempt {
-  /** Training signatures the descent consumed at this rung. */
+  /**
+   * The rung's training count -- the old name, identical to `trainingSignatures`
+   * and kept only so existing readers (the worker's ladder message) still
+   * compile. It is the TRAINING half, never the total.
+   */
   readonly signatures: number;
+  /** Signatures the descent trained on at this rung. Measured, not the target N. */
+  readonly trainingSignatures: number;
+  /** Signatures held out from the descent and used only to score it. Equal to the training count. */
+  readonly heldOutSignatures: number;
+  /** What the victim actually published for this rung: training + held out = 2N. */
+  readonly totalObserved: number;
   /** Restarts used. */
   readonly restarts: number;
   /** Distinct directions found. */
@@ -321,31 +372,86 @@ export interface Break2Options {
   readonly dedupe?: number;
   /** Half-width of the hashed-message box. Default 1e4. */
   readonly hRange?: number;
+  /**
+   * LAB SCORING ONLY: the victim's private basis R, used once after the ladder has
+   * stopped to fill in `groundTruthRecovered`. THE ATTACK PATH NEVER CONSULTS IT --
+   * omitting it produces an identical run, field for field, which break2.test.ts
+   * asserts.
+   */
+  readonly groundTruthR?: Mat;
   /** Live progress, once per restart plus once per phase change. */
   readonly onProgress?: (p: Break2Progress) => void;
 }
 
 export interface Break2Progress {
   readonly phase: 'collecting' | 'whitening' | 'descending' | 'forging';
-  /** Training signatures consumed so far -- the live counter. Never a constant. */
+  /**
+   * Training signatures consumed so far -- the live counter. Never a constant.
+   * The old name for `trainingSignatures`, and identical to it.
+   */
   readonly signatures: number;
-  /** Signatures observed in total, training plus hold-out. */
+  /** Signatures observed in total, training plus hold-out. The old name for `totalObserved`. */
   readonly observed: number;
+  /** Signatures the descent has trained on so far. */
+  readonly trainingSignatures: number;
+  /** Signatures drawn and withheld from the descent so far. */
+  readonly heldOutSignatures: number;
+  /** Everything the victim has published so far: training + held out. Twice the counter. */
+  readonly totalObserved: number;
   readonly restarts: number;
   readonly directionsFound: number;
   readonly target: number;
 }
 
 export interface Break2Result {
-  /** True only if the REAL verifier accepted every forgery. */
+  /**
+   * True only if the REAL verifier accepted every forgery. UNCHANGED MEANING:
+   * this is the forgery verdict, exactly as before, and it is always identical to
+   * `forgeryOk`. It is NOT a claim that the secret rows were recovered -- that is
+   * `groundTruthRecovered`, and the two are independent.
+   */
   readonly ok: boolean;
-  /** What happened, in one sentence. */
+  /**
+   * OUTCOME 1, ATTACKER-OBSERVABLE. The public verifier -- which knows only B and
+   * the published bound -- accepted all `forgeries` fresh signatures made with the
+   * candidate. Computable by anyone watching the wire. Same value as `ok`; the
+   * explicit name exists so the UI never has to guess which question `ok` answered.
+   */
+  readonly forgeryOk: boolean;
+  /**
+   * OUTCOME 2, LAB-ONLY GROUND TRUTH. `matchUpToSignPerm(Rhat, groundTruthR)` came
+   * back complete: the candidate IS the private rows up to sign and permutation.
+   *
+   * AN ATTACKER CANNOT COMPUTE THIS -- it reads the secret basis -- and it never
+   * gates the attack: the ladder stops on the forgery, and this is scored
+   * afterwards. `null` means no `groundTruthR` was supplied, so the lab did not
+   * score it; that is NOT the same as `false`. `false` with a non-null `Rhat`
+   * means a basis that may still forge is not the secret rows, which is exactly
+   * what plain LLL on the public basis produces (see the header measurement).
+   */
+  readonly groundTruthRecovered: boolean | null;
+  /**
+   * The full lab-only matching behind `groundTruthRecovered` -- how many rows
+   * matched, which permutation, which signs -- or null when there was nothing to
+   * score (no `groundTruthR`, or no candidate basis at all).
+   */
+  readonly groundTruthMatch: MatchResult | null;
+  /** What happened, in one sentence. Reports the FORGERY outcome only, never ground truth. */
   readonly reason: string;
-  /** Training signatures the successful rung consumed, or the last rung tried. */
+  /**
+   * The old name for `trainingSignatures`, kept so existing readers compile: the
+   * TRAINING signatures of the rung that finished (the successful one, or the last
+   * one tried). It has never included the hold-out, so it is HALF of what the
+   * victim published -- use `totalObserved` for that.
+   */
   readonly signaturesConsumed: number;
-  /** Hold-out signatures observed. Equal to the training count by construction. */
+  /** Signatures the descent trained on at the reported rung. */
+  readonly trainingSignatures: number;
+  /** Signatures withheld from the descent and used only to score it. Equal to the training count. */
   readonly heldOutSignatures: number;
-  /** Everything the victim published: training plus hold-out. */
+  /** Everything the victim published: training + held out = 2 * trainingSignatures. */
+  readonly totalObserved: number;
+  /** The old name for `totalObserved`, kept so existing readers compile. Same number. */
   readonly totalSignaturesObserved: number;
   /** Every rung of the ladder, so the cost curve can be displayed. */
   readonly attempts: Break2Attempt[];
@@ -356,8 +462,10 @@ export interface Break2Result {
    * rows were singular.
    *
    * NON-NULL IS NOT SUCCESS. A candidate exists on every rung that finished the
-   * descent, including the ones that recovered garbage. `ok` -- the real
-   * verifier's verdict -- is the only success signal in this object.
+   * descent, including the ones that recovered garbage. `forgeryOk` (== `ok`) is
+   * the verifier's verdict on it, and `groundTruthRecovered` is the lab's separate
+   * verdict on whether it is really R. Neither is implied by this field being
+   * non-null, and neither implies the other.
    */
   readonly Rhat: Mat | null;
   /** The lifted rows of the last rung. */
@@ -387,6 +495,12 @@ function mean(xs: number[]): number {
  *
  * On exceeding the cap it returns `ok: false` with the ladder it climbed and the
  * statistics it measured. It never reports a success it did not verify.
+ *
+ * TWO VERDICTS, ONE OF WHICH THE ATTACKER CANNOT REACH. The ladder is driven by
+ * the forgery and nothing else. If `groundTruthR` is supplied, the secret is read
+ * exactly once, after the ladder has already stopped, to score the candidate that
+ * the verifier had already judged; every other number in the result is computed
+ * before that line runs and cannot depend on it.
  */
 export function runBreak2(opts: Break2Options): Break2Result {
   const { pub, sign, rng } = opts;
@@ -397,6 +511,22 @@ export function runBreak2(opts: Break2Options): Break2Result {
   const hRange = opts.hRange ?? DEFAULT_H_RANGE;
   const maxRestarts = opts.maxRestarts ?? restartBudget(n);
   const report = opts.onProgress;
+
+  // A mis-shaped ground truth would match nothing and the lab would render "not
+  // the secret rows" for what is really a caller mistake, so it fails loudly
+  // instead. Nothing about the attack depends on this argument.
+  const groundTruthR = opts.groundTruthR;
+  if (groundTruthR !== undefined) {
+    const shaped = groundTruthR.length === n && groundTruthR.every((r) => r.length === n);
+    if (!shaped) {
+      throw new Error(
+        `groundTruthR must be the ${n}x${n} private basis, and it is ` +
+          `${groundTruthR.length}x${groundTruthR[0]?.length ?? 0}. Scoring against the wrong ` +
+          'shape would report "not recovered" for every candidate, which reads as a failed ' +
+          'attack rather than a lab mistake.',
+      );
+    }
+  }
 
   // Both sets grow across rungs rather than being redrawn, so the ladder costs
   // 2*capN signatures in total and not the sum of every rung.
@@ -415,6 +545,9 @@ export function runBreak2(opts: Break2Options): Break2Result {
         phase,
         signatures: train.length,
         observed: train.length + held.length,
+        trainingSignatures: train.length,
+        heldOutSignatures: held.length,
+        totalObserved: train.length + held.length,
         restarts,
         directionsFound,
         target: n,
@@ -485,7 +618,12 @@ export function runBreak2(opts: Break2Options): Break2Result {
     }
 
     attempts.push({
-      signatures: N,
+      // Measured off the sample arrays rather than off N, so the compat alias and
+      // the three explicit counts can never drift apart from what was drawn.
+      signatures: train.length,
+      trainingSignatures: train.length,
+      heldOutSignatures: held.length,
+      totalObserved: train.length + held.length,
       restarts: rec.restarts,
       directionsFound: rec.dirs.length,
       exhausted: rec.exhausted,
@@ -496,19 +634,50 @@ export function runBreak2(opts: Break2Options): Break2Result {
       note,
     });
 
-    const ok = Rhat !== null && accepted === forgeries && forgeries > 0;
+    // OUTCOME 1. The verifier's verdict, and the only thing that drives the
+    // ladder. `ok` keeps this exact meaning; `forgeryOk` is the same number under
+    // a name that says which question it answered.
+    const forgeryOk = Rhat !== null && accepted === forgeries && forgeries > 0;
+    const ok = forgeryOk;
     const last = N >= capN;
     if (ok || last) {
+      // OUTCOME 2, and the ONLY line in this function that touches the secret. It
+      // runs after the ladder has already stopped, so it cannot influence the
+      // attack; drop `groundTruthR` and every other field is unchanged.
+      const groundTruthMatch =
+        groundTruthR !== undefined && Rhat !== null ? matchUpToSignPerm(Rhat, groundTruthR) : null;
+      // null = the lab was not asked to score it, which is NOT the same as false.
+      // With a ground truth supplied but no candidate at all, false is the honest
+      // answer and not a shortcut: R is a nonsingular n x n basis, so an
+      // incomplete or singular candidate cannot be it up to sign and permutation.
+      const groundTruthRecovered =
+        groundTruthR === undefined ? null : groundTruthMatch !== null && groundTruthMatch.complete;
+
+      const totalObserved = train.length + held.length;
+      const sampleCounts =
+        `${train.length} training + ${held.length} held out = ${totalObserved} oracle ` +
+        'signatures observed';
       return {
         ok,
+        forgeryOk,
+        groundTruthRecovered,
+        groundTruthMatch,
+        // Attacker-observable only: the forgery verdict and the sample counts.
+        // Whether the candidate is really R is deliberately absent, which is what
+        // keeps this string identical with and without a ground truth.
         reason: ok
-          ? `the real verifier accepted ${accepted}/${forgeries} forgeries signed with a basis ` +
-            `recovered from ${N} signatures (${train.length + held.length} observed in total)`
-          : `no forgery was accepted within the cap of ${capN} signatures per rung` +
+          ? `the real verifier accepted ${accepted}/${forgeries} fresh forgeries signed with a ` +
+            `candidate basis built from ${train.length} training signatures (${sampleCounts}); ` +
+            'that is forgery capability, which is a separate question from whether the candidate ' +
+            'is the secret basis'
+          : `no forgery was accepted within the cap of ${capN} signatures per rung ` +
+            `(${sampleCounts})` +
             (note ? `; last rung: ${note}` : `; last rung forged ${accepted}/${forgeries}`),
-        signaturesConsumed: N,
+        signaturesConsumed: train.length,
+        trainingSignatures: train.length,
         heldOutSignatures: held.length,
-        totalSignaturesObserved: train.length + held.length,
+        totalObserved,
+        totalSignaturesObserved: totalObserved,
         attempts,
         Rhat,
         rows,

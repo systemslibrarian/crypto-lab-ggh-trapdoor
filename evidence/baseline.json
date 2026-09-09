@@ -1,0 +1,831 @@
+{
+  "schema": "crypto-lab-ggh-trapdoor/evidence@1",
+  "provenance": {
+    "timestamp": "2026-09-09T03:00:27.128Z",
+    "commit": "2dcda07cc029b577b141ed51ce33807a0e47aad3",
+    "commitShort": "2dcda07",
+    "branch": "main",
+    "treeClean": false,
+    "node": "v26.5.0",
+    "v8": "14.6.202.34-node.24",
+    "os": "Darwin 25.6.0",
+    "platform": "darwin",
+    "arch": "arm64",
+    "cpuModel": "Apple M5",
+    "seedCorpus": {
+      "i1": {
+        "keySeedBase": 1000,
+        "keys": 3
+      },
+      "i2": {
+        "keySeedBase": 7000,
+        "ciphertextSeedBase": 7500,
+        "ciphertexts": 40
+      },
+      "keygen": {
+        "seedBase": 20000
+      },
+      "baseline": {
+        "keySeedBase": 31000,
+        "ciphertextSeedBase": 31500,
+        "ciphertexts": 25
+      },
+      "break1": {
+        "keySeedBase": 41000,
+        "ciphertextSeedBase": 41500,
+        "honest": 20,
+        "tampered": 10
+      },
+      "break2": {
+        "roundOffKeySeeds": [
+          20260908,
+          555001,
+          555002,
+          555003
+        ],
+        "kleinKeySeeds": [
+          9090,
+          9091
+        ],
+        "attackSeed": 4242,
+        "startN": 4000,
+        "capN": 32000,
+        "forgeries": 20
+      },
+      "hnf": {
+        "keySeedBase": 51000
+      }
+    },
+    "dimensions": [
+      8,
+      16,
+      32,
+      60
+    ],
+    "generator": "scripts/evidence.mjs",
+    "note": "Every value here is recomputed from src/ with the seeds above. Wall-clock fields (msP50/msP95/ms) and bundle sizes are the only machine-dependent ones.",
+    "generationMs": 9267.975,
+    "warnings": []
+  },
+  "summary": {
+    "allInvariantsHeld": true,
+    "sections": {
+      "i1": true,
+      "i2": true,
+      "baseline": true,
+      "break1": true,
+      "break2": true,
+      "gaussian": true,
+      "hnf": true
+    }
+  },
+  "i1": {
+    "claim": "C1 / invariant I1: U*R = B, V*B = R and U*V = I, all in exact integers under 2^53.",
+    "ok": true,
+    "byDimension": [
+      {
+        "n": 8,
+        "keys": 3,
+        "allPass": true,
+        "maxIntermediate": 24089,
+        "two53": 9007199254740991,
+        "headroom": 373913373520.7352,
+        "spareBits": 38.443913,
+        "msP50": 0.117
+      },
+      {
+        "n": 16,
+        "keys": 3,
+        "allPass": true,
+        "maxIntermediate": 13606,
+        "two53": 9007199254740991,
+        "headroom": 662002003141.334,
+        "spareBits": 39.268045,
+        "msP50": 0.364
+      },
+      {
+        "n": 32,
+        "keys": 3,
+        "allPass": true,
+        "maxIntermediate": 17786,
+        "two53": 9007199254740991,
+        "headroom": 506420738487.6302,
+        "spareBits": 38.881546,
+        "msP50": 1.068
+      },
+      {
+        "n": 60,
+        "keys": 3,
+        "allPass": true,
+        "maxIntermediate": 15762,
+        "two53": 9007199254740991,
+        "headroom": 571450276280.9917,
+        "spareBits": 39.055837,
+        "msP50": 5.941
+      }
+    ]
+  },
+  "i2": {
+    "claim": "C2 / invariant I2: Babai round-off recovers the lattice point iff max|e*basis^-1| < 1/2, and the private basis carries a worst-case guarantee.",
+    "sigma": 3,
+    "ok": true,
+    "byDimension": [
+      {
+        "n": 8,
+        "ciphertexts": 40,
+        "iffMismatches": 0,
+        "privateBasis": {
+          "actualMin": 0.079777,
+          "actualMedian": 0.100756,
+          "actualMax": 0.11769,
+          "worstCase": 0.127475,
+          "guaranteed": true,
+          "guaranteeMargin": 3.922342,
+          "decryptedCorrectly": 40
+        },
+        "publicBasis": {
+          "actualMin": 0.34959,
+          "actualMedian": 5.1738,
+          "actualMax": 12.687708,
+          "worstCase": 12.687708,
+          "guaranteed": false,
+          "overThreshold": 10.3476,
+          "decryptedCorrectly": 1
+        }
+      },
+      {
+        "n": 16,
+        "ciphertexts": 40,
+        "iffMismatches": 0,
+        "privateBasis": {
+          "actualMin": 0.075863,
+          "actualMedian": 0.084299,
+          "actualMax": 0.1053,
+          "worstCase": 0.127952,
+          "guaranteed": true,
+          "guaranteeMargin": 3.907714,
+          "decryptedCorrectly": 40
+        },
+        "publicBasis": {
+          "actualMin": 0.348749,
+          "actualMedian": 1.339112,
+          "actualMax": 2.663908,
+          "worstCase": 3.02049,
+          "guaranteed": false,
+          "overThreshold": 2.678225,
+          "decryptedCorrectly": 1
+        }
+      },
+      {
+        "n": 32,
+        "ciphertexts": 40,
+        "iffMismatches": 0,
+        "privateBasis": {
+          "actualMin": 0.061637,
+          "actualMedian": 0.072983,
+          "actualMax": 0.085882,
+          "worstCase": 0.121821,
+          "guaranteed": true,
+          "guaranteeMargin": 4.104391,
+          "decryptedCorrectly": 40
+        },
+        "publicBasis": {
+          "actualMin": 0.931941,
+          "actualMedian": 2.276427,
+          "actualMax": 6.948573,
+          "worstCase": 11.65385,
+          "guaranteed": false,
+          "overThreshold": 4.552854,
+          "decryptedCorrectly": 0
+        }
+      },
+      {
+        "n": 60,
+        "ciphertexts": 40,
+        "iffMismatches": 0,
+        "privateBasis": {
+          "actualMin": 0.053451,
+          "actualMedian": 0.0616,
+          "actualMax": 0.073638,
+          "worstCase": 0.11759,
+          "guaranteed": true,
+          "guaranteeMargin": 4.252074,
+          "decryptedCorrectly": 40
+        },
+        "publicBasis": {
+          "actualMin": 0.832621,
+          "actualMedian": 1.761268,
+          "actualMax": 3.471807,
+          "worstCase": 7.906931,
+          "guaranteed": false,
+          "overThreshold": 3.522536,
+          "decryptedCorrectly": 0
+        }
+      }
+    ]
+  },
+  "keygen": {
+    "claim": "Only keys whose det is coprime to 6 are usable by Break 1, so keygen resamples; this is the measured fraction of random R that qualify.",
+    "overallAcceptanceRate": 0.162125,
+    "byDimension": [
+      {
+        "n": 8,
+        "keys": 200,
+        "candidateDraws": 1299,
+        "acceptanceRate": 0.153965,
+        "meanDrawsToAccept": 6.495
+      },
+      {
+        "n": 16,
+        "keys": 150,
+        "candidateDraws": 846,
+        "acceptanceRate": 0.177305,
+        "meanDrawsToAccept": 5.64
+      },
+      {
+        "n": 32,
+        "keys": 80,
+        "candidateDraws": 446,
+        "acceptanceRate": 0.179372,
+        "meanDrawsToAccept": 5.575
+      },
+      {
+        "n": 60,
+        "keys": 40,
+        "candidateDraws": 308,
+        "acceptanceRate": 0.12987,
+        "meanDrawsToAccept": 7.7
+      }
+    ]
+  },
+  "baseline": {
+    "claim": "Raw Babai round-off with B fails; LLL(B) -- the ordinary public attack -- recovers the private basis up to sign and permutation at every dimension this lab offers, and decrypts as well as the trapdoor does.",
+    "source": "src/attack/baseline.ts",
+    "note": "raw-B and secret-R share one ciphertext stream; the LLL(B) row draws its own inside src/attack/baseline.ts, on the same key.",
+    "ok": true,
+    "byDimension": [
+      {
+        "n": 8,
+        "reEncryptionDisagreements": 0,
+        "rawB": {
+          "decrypted": 1,
+          "trials": 25,
+          "successRate": 0.04,
+          "medianI2": 0.835783,
+          "worstCaseBound": 2.463512,
+          "guaranteed": false,
+          "log10OrthogonalityDefect": 6.282914,
+          "shortestRowNorm": 65.406422
+        },
+        "lllB": {
+          "source": "src/attack/baseline.ts",
+          "decrypted": 25,
+          "trials": 25,
+          "successRate": 1,
+          "worstCaseBound": 0.117019,
+          "guaranteed": true,
+          "log10OrthogonalityDefect": 0.038971,
+          "shortestRowNorm": 36.386811,
+          "lllMs": 0.308,
+          "lllSwaps": 54,
+          "lllIters": 109,
+          "lllGuardMax": 255,
+          "lllFailure": null,
+          "matchesSecretUpToSignPerm": true,
+          "rowsMatchingSecret": 8,
+          "attackerVerdictOk": true
+        },
+        "secretR": {
+          "decrypted": 25,
+          "trials": 25,
+          "successRate": 1,
+          "medianI2": 0.097916,
+          "worstCaseBound": 0.117019,
+          "guaranteed": true,
+          "log10OrthogonalityDefect": 0.038971,
+          "shortestRowNorm": 36.386811
+        }
+      },
+      {
+        "n": 16,
+        "reEncryptionDisagreements": 0,
+        "rawB": {
+          "decrypted": 0,
+          "trials": 25,
+          "successRate": 0,
+          "medianI2": 1.398233,
+          "worstCaseBound": 5.301712,
+          "guaranteed": false,
+          "log10OrthogonalityDefect": 16.063291,
+          "shortestRowNorm": 139.046755
+        },
+        "lllB": {
+          "source": "src/attack/baseline.ts",
+          "decrypted": 25,
+          "trials": 25,
+          "successRate": 1,
+          "worstCaseBound": 0.121633,
+          "guaranteed": true,
+          "log10OrthogonalityDefect": 0.127066,
+          "shortestRowNorm": 44.788391,
+          "lllMs": 0.651,
+          "lllSwaps": 371,
+          "lllIters": 746,
+          "lllGuardMax": 1000,
+          "lllFailure": null,
+          "matchesSecretUpToSignPerm": true,
+          "rowsMatchingSecret": 16,
+          "attackerVerdictOk": true
+        },
+        "secretR": {
+          "decrypted": 25,
+          "trials": 25,
+          "successRate": 1,
+          "medianI2": 0.085308,
+          "worstCaseBound": 0.121633,
+          "guaranteed": true,
+          "log10OrthogonalityDefect": 0.127066,
+          "shortestRowNorm": 44.788391
+        }
+      },
+      {
+        "n": 32,
+        "reEncryptionDisagreements": 0,
+        "rawB": {
+          "decrypted": 0,
+          "trials": 25,
+          "successRate": 0,
+          "medianI2": 2.153555,
+          "worstCaseBound": 7.089008,
+          "guaranteed": false,
+          "log10OrthogonalityDefect": 35.446731,
+          "shortestRowNorm": 136.583308
+        },
+        "lllB": {
+          "source": "src/attack/baseline.ts",
+          "decrypted": 25,
+          "trials": 25,
+          "successRate": 1,
+          "worstCaseBound": 0.118794,
+          "guaranteed": true,
+          "log10OrthogonalityDefect": 0.358924,
+          "shortestRowNorm": 59.841457,
+          "lllMs": 1.679,
+          "lllSwaps": 1720,
+          "lllIters": 3458,
+          "lllGuardMax": 1721,
+          "lllFailure": null,
+          "matchesSecretUpToSignPerm": true,
+          "rowsMatchingSecret": 32,
+          "attackerVerdictOk": true
+        },
+        "secretR": {
+          "decrypted": 25,
+          "trials": 25,
+          "successRate": 1,
+          "medianI2": 0.071463,
+          "worstCaseBound": 0.118794,
+          "guaranteed": true,
+          "log10OrthogonalityDefect": 0.358924,
+          "shortestRowNorm": 59.841457
+        }
+      },
+      {
+        "n": 60,
+        "reEncryptionDisagreements": 0,
+        "rawB": {
+          "decrypted": 0,
+          "trials": 25,
+          "successRate": 0,
+          "medianI2": 2.060252,
+          "worstCaseBound": 8.67285,
+          "guaranteed": false,
+          "log10OrthogonalityDefect": 69.360657,
+          "shortestRowNorm": 199.08792
+        },
+        "lllB": {
+          "source": "src/attack/baseline.ts",
+          "decrypted": 25,
+          "trials": 25,
+          "successRate": 1,
+          "worstCaseBound": 0.120989,
+          "guaranteed": true,
+          "log10OrthogonalityDefect": 0.832324,
+          "shortestRowNorm": 76.197113,
+          "lllMs": 7.829,
+          "lllSwaps": 5438,
+          "lllIters": 10923,
+          "lllGuardMax": 4341,
+          "lllFailure": null,
+          "matchesSecretUpToSignPerm": true,
+          "rowsMatchingSecret": 60,
+          "attackerVerdictOk": true
+        },
+        "secretR": {
+          "decrypted": 25,
+          "trials": 25,
+          "successRate": 1,
+          "medianI2": 0.061583,
+          "worstCaseBound": 0.120989,
+          "guaranteed": true,
+          "log10OrthogonalityDefect": 0.832324,
+          "shortestRowNorm": 76.197113
+        }
+      }
+    ]
+  },
+  "break1": {
+    "claim": "C3: Nguyen mod-2sigma + LLL recovers the message with the public key only, verified by re-encryption (I5). C4: a non-congruent error kills it.",
+    "ok": true,
+    "byDimension": [
+      {
+        "n": 8,
+        "honest": {
+          "trials": 20,
+          "verified": 20,
+          "successRate": 1,
+          "msP50": 0.068,
+          "msP95": 0.19,
+          "normRatioMin": 1,
+          "normRatioMax": 1
+        },
+        "tampered": {
+          "trials": 10,
+          "verified": 0,
+          "divisionStillExact": 10,
+          "normRatioMin": 3.05505,
+          "normRatioMax": 4.714045
+        },
+        "separation": 3.05505
+      },
+      {
+        "n": 16,
+        "honest": {
+          "trials": 20,
+          "verified": 20,
+          "successRate": 1,
+          "msP50": 0.134,
+          "msP95": 0.164,
+          "normRatioMin": 1,
+          "normRatioMax": 1
+        },
+        "tampered": {
+          "trials": 10,
+          "verified": 0,
+          "divisionStillExact": 10,
+          "normRatioMin": 3.597385,
+          "normRatioMax": 4.65264
+        },
+        "separation": 3.597385
+      },
+      {
+        "n": 32,
+        "honest": {
+          "trials": 20,
+          "verified": 20,
+          "successRate": 1,
+          "msP50": 1.109,
+          "msP95": 2.748,
+          "normRatioMin": 1,
+          "normRatioMax": 1
+        },
+        "tampered": {
+          "trials": 10,
+          "verified": 0,
+          "divisionStillExact": 10,
+          "normRatioMin": 3.765875,
+          "normRatioMax": 4.722608
+        },
+        "separation": 3.765875
+      },
+      {
+        "n": 60,
+        "honest": {
+          "trials": 20,
+          "verified": 20,
+          "successRate": 1,
+          "msP50": 7.602,
+          "msP95": 7.946,
+          "normRatioMin": 1,
+          "normRatioMax": 1
+        },
+        "tampered": {
+          "trials": 10,
+          "verified": 0,
+          "divisionStillExact": 10,
+          "normRatioMin": 3.875099,
+          "normRatioMax": 4.573624
+        },
+        "separation": 3.875099
+      }
+    ]
+  },
+  "break2": {
+    "claim": "C5: the round-off signer leaks its private basis and the REAL verifier accepts the forgeries. C5': the same attack learns nothing from a Klein/GPV signer.",
+    "dimension": 8,
+    "kRule": "paperK(n) = round(sqrt(n)*l) -- see the note in this section of scripts/evidence.mjs",
+    "ladder": {
+      "startN": 4000,
+      "capN": 32000,
+      "forgeries": 20
+    },
+    "ok": true,
+    "roundOff": {
+      "keys": 4,
+      "forgeryOk": 4,
+      "forgerySuccessRate": 1,
+      "groundTruthRecovered": 4,
+      "msP50": 100.61,
+      "msP95": 331.345,
+      "sumA4HeldOutMin": 0.998845,
+      "sumA4HeldOutMax": 1.018596,
+      "integralityGapMin": 0.161659,
+      "integralityGapMax": 0.343587,
+      "runs": [
+        {
+          "keySeed": 20260908,
+          "ms": 100.60958299999993,
+          "forgeryOk": true,
+          "groundTruthRecovered": true,
+          "reason": "the real verifier accepted 20/20 fresh forgeries signed with a candidate basis built from 8000 training signatures (8000 training + 8000 held out = 16000 oracle signatures observed); that is forgery capability, which is a separate question from whether the candidate is the secret basis",
+          "trainingSignatures": 8000,
+          "heldOutSignatures": 8000,
+          "totalSignaturesObserved": 16000,
+          "rungs": 2,
+          "forgeriesAccepted": 20,
+          "forgeriesAttempted": 20,
+          "groundTruthRowsMatched": 8,
+          "absDetRatio": 1,
+          "sumA4HeldOut": 1.002317,
+          "sumA4InSample": 0.998814,
+          "integralityGap": 0.287843,
+          "worstIntegralityGap": 0.385445,
+          "covarianceShape": 0.619171
+        },
+        {
+          "keySeed": 555001,
+          "ms": 97.10383300000012,
+          "forgeryOk": true,
+          "groundTruthRecovered": true,
+          "reason": "the real verifier accepted 20/20 fresh forgeries signed with a candidate basis built from 8000 training signatures (8000 training + 8000 held out = 16000 oracle signatures observed); that is forgery capability, which is a separate question from whether the candidate is the secret basis",
+          "trainingSignatures": 8000,
+          "heldOutSignatures": 8000,
+          "totalSignaturesObserved": 16000,
+          "rungs": 2,
+          "forgeriesAccepted": 20,
+          "forgeriesAttempted": 20,
+          "groundTruthRowsMatched": 8,
+          "absDetRatio": 1,
+          "sumA4HeldOut": 1.018596,
+          "sumA4InSample": 1.00601,
+          "integralityGap": 0.343587,
+          "worstIntegralityGap": 0.468092,
+          "covarianceShape": 0.729712
+        },
+        {
+          "keySeed": 555002,
+          "ms": 331.345,
+          "forgeryOk": true,
+          "groundTruthRecovered": true,
+          "reason": "the real verifier accepted 20/20 fresh forgeries signed with a candidate basis built from 32000 training signatures (32000 training + 32000 held out = 64000 oracle signatures observed); that is forgery capability, which is a separate question from whether the candidate is the secret basis",
+          "trainingSignatures": 32000,
+          "heldOutSignatures": 32000,
+          "totalSignaturesObserved": 64000,
+          "rungs": 4,
+          "forgeriesAccepted": 20,
+          "forgeriesAttempted": 20,
+          "groundTruthRowsMatched": 8,
+          "absDetRatio": 1,
+          "sumA4HeldOut": 0.998845,
+          "sumA4InSample": 0.99959,
+          "integralityGap": 0.161659,
+          "worstIntegralityGap": 0.325491,
+          "covarianceShape": 1.039369
+        },
+        {
+          "keySeed": 555003,
+          "ms": 187.51537499999995,
+          "forgeryOk": true,
+          "groundTruthRecovered": true,
+          "reason": "the real verifier accepted 20/20 fresh forgeries signed with a candidate basis built from 16000 training signatures (16000 training + 16000 held out = 32000 oracle signatures observed); that is forgery capability, which is a separate question from whether the candidate is the secret basis",
+          "trainingSignatures": 16000,
+          "heldOutSignatures": 16000,
+          "totalSignaturesObserved": 32000,
+          "rungs": 3,
+          "forgeriesAccepted": 20,
+          "forgeriesAttempted": 20,
+          "groundTruthRowsMatched": 8,
+          "absDetRatio": 1,
+          "sumA4HeldOut": 1.003507,
+          "sumA4InSample": 1.000627,
+          "integralityGap": 0.209857,
+          "worstIntegralityGap": 0.300367,
+          "covarianceShape": 0.608424
+        }
+      ]
+    },
+    "klein": {
+      "keys": 2,
+      "forgeryOk": 0,
+      "forgerySuccessRate": 0,
+      "groundTruthRecovered": 0,
+      "msP50": 3211.113,
+      "msP95": 4283.871,
+      "sumA4HeldOutMin": -0.002798,
+      "sumA4HeldOutMax": 0.066936,
+      "integralityGapMin": 0.423626,
+      "integralityGapMax": 0.435078,
+      "runs": [
+        {
+          "keySeed": 9090,
+          "ms": 4283.871375,
+          "forgeryOk": false,
+          "groundTruthRecovered": false,
+          "reason": "no forgery was accepted within the cap of 32000 signatures per rung (32000 training + 32000 held out = 64000 oracle signatures observed); last rung forged 0/20",
+          "trainingSignatures": 32000,
+          "heldOutSignatures": 32000,
+          "totalSignaturesObserved": 64000,
+          "rungs": 4,
+          "forgeriesAccepted": 0,
+          "forgeriesAttempted": 20,
+          "groundTruthRowsMatched": 0,
+          "absDetRatio": 28045.845744,
+          "sumA4HeldOut": 0.066936,
+          "sumA4InSample": 0.07567,
+          "integralityGap": 0.423626,
+          "worstIntegralityGap": 0.489704,
+          "covarianceShape": 0.020214,
+          "klein": {
+            "sigma": 52.631549,
+            "stats": {
+              "draws": 6149565,
+              "accepts": 512000,
+              "fallbacks": 0
+            }
+          }
+        },
+        {
+          "keySeed": 9091,
+          "ms": 3211.1132080000007,
+          "forgeryOk": false,
+          "groundTruthRecovered": false,
+          "reason": "no forgery was accepted within the cap of 32000 signatures per rung (32000 training + 32000 held out = 64000 oracle signatures observed); last rung forged 0/20",
+          "trainingSignatures": 32000,
+          "heldOutSignatures": 32000,
+          "totalSignaturesObserved": 64000,
+          "rungs": 4,
+          "forgeriesAccepted": 0,
+          "forgeriesAttempted": 20,
+          "groundTruthRowsMatched": 0,
+          "absDetRatio": 7927.093942,
+          "sumA4HeldOut": -0.002798,
+          "sumA4InSample": 0.069341,
+          "integralityGap": 0.435078,
+          "worstIntegralityGap": 0.499677,
+          "covarianceShape": 0.017605,
+          "klein": {
+            "sigma": 44.225694,
+            "stats": {
+              "draws": 6140327,
+              "accepts": 512000,
+              "fallbacks": 0
+            }
+          }
+        }
+      ]
+    }
+  },
+  "gaussian": {
+    "claim": "The Klein sampler is a rejection sampler with a try cap; the fallback to round(c) is a visible degradation, and it must never fire in practice.",
+    "keys": 2,
+    "candidateDraws": 12289892,
+    "accepts": 1024000,
+    "acceptanceRate": 0.083321,
+    "samplerFallbacks": 0,
+    "heldOut": {
+      "sumA4Min": -0.002798,
+      "sumA4Max": 0.066936,
+      "integralityGapMin": 0.423626,
+      "integralityGapMax": 0.435078,
+      "sumA4InSample": [
+        0.07567,
+        0.069341
+      ]
+    },
+    "roundOffHeldOutForContrast": {
+      "sumA4Min": 0.998845,
+      "sumA4Max": 1.018596
+    },
+    "ok": true
+  },
+  "hnf": {
+    "claim": "HNF(B) is a canonical basis for the same lattice, proved in exact BigInt arithmetic, and it is a smaller public key at these parameters -- by 10-30%, not by a factor of n.",
+    "ok": true,
+    "byDimension": [
+      {
+        "n": 8,
+        "ms": 0.075,
+        "proofMs": 0.239,
+        "proofOk": true,
+        "detBits": 44,
+        "detDecimalDigits": 13,
+        "nontrivialPivots": 1,
+        "basisBits": 481,
+        "hnfBits": 381,
+        "hnfDenseBits": 409,
+        "sizeRatio": 1.262467,
+        "basisBitsPerEntry": 7.515625,
+        "largestHnfEntryBits": 44,
+        "peakHnfEntryBits": 44,
+        "peakProofTransformBits": 38,
+        "peakProofTransformLog10": 11
+      },
+      {
+        "n": 16,
+        "ms": 0.585,
+        "proofMs": 0.894,
+        "proofOk": true,
+        "detBits": 91,
+        "detDecimalDigits": 27,
+        "nontrivialPivots": 1,
+        "basisBits": 1880,
+        "hnfBits": 1552,
+        "hnfDenseBits": 1672,
+        "sizeRatio": 1.21134,
+        "basisBitsPerEntry": 7.34375,
+        "largestHnfEntryBits": 91,
+        "peakHnfEntryBits": 91,
+        "peakProofTransformBits": 85,
+        "peakProofTransformLog10": 25
+      },
+      {
+        "n": 32,
+        "ms": 5.356,
+        "proofMs": 5.286,
+        "proofOk": true,
+        "detBits": 192,
+        "detDecimalDigits": 58,
+        "nontrivialPivots": 2,
+        "basisBits": 7362,
+        "hnfBits": 6603,
+        "hnfDenseBits": 7099,
+        "sizeRatio": 1.114948,
+        "basisBitsPerEntry": 7.189453,
+        "largestHnfEntryBits": 190,
+        "peakHnfEntryBits": 190,
+        "peakProofTransformBits": 184,
+        "peakProofTransformLog10": 54
+      },
+      {
+        "n": 60,
+        "ms": 34.353,
+        "proofMs": 33.696,
+        "proofOk": true,
+        "detBits": 378,
+        "detDecimalDigits": 114,
+        "nontrivialPivots": 1,
+        "basisBits": 27469,
+        "hnfBits": 24443,
+        "hnfDenseBits": 26213,
+        "sizeRatio": 1.123798,
+        "basisBitsPerEntry": 7.630278,
+        "largestHnfEntryBits": 378,
+        "peakHnfEntryBits": 378,
+        "peakProofTransformBits": 372,
+        "peakProofTransformLog10": 111
+      }
+    ]
+  },
+  "bundle": {
+    "present": true,
+    "totalBytes": 127030,
+    "totalGzipBytes": 43393,
+    "files": [
+      {
+        "file": "dist/assets/break2.worker-BXZ_3HER.js",
+        "bytes": 18198,
+        "gzipBytes": 6526,
+        "sha256": "e603398d6291a8fb"
+      },
+      {
+        "file": "dist/assets/index-Clkth0hO.css",
+        "bytes": 11288,
+        "gzipBytes": 3020,
+        "sha256": "e6d31db798343dab"
+      },
+      {
+        "file": "dist/assets/index-D836cI2y.js",
+        "bytes": 72752,
+        "gzipBytes": 25638,
+        "sha256": "38c637613175ac4a"
+      },
+      {
+        "file": "dist/index.html",
+        "bytes": 24792,
+        "gzipBytes": 8209,
+        "sha256": "ea7134bc2bc1fd5b"
+      }
+    ],
+    "note": "Sizes are from the dist/ present at generation time; they change with every build."
+  }
+}

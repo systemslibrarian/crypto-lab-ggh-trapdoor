@@ -5,8 +5,9 @@ import { gghKeygen } from '../lattice/keygen';
 import type { Rng } from '../lattice/types';
 import {
   buildEmbedding,
-  expectedShortNorm,
   maxAbsGram,
+  meanShortNorm,
+  plantedNormRms,
   reduceTargetModLattice,
   solveByEmbedding,
   type EmbeddingForm,
@@ -61,7 +62,7 @@ describe('the embedding basis', () => {
     let sq = 0;
     for (const v of vc) sq += v * v;
     // Exactly sqrt(n + t^2), whatever the ciphertext was. That is the observable.
-    expect(Math.sqrt(sq)).toBeCloseTo(expectedShortNorm(n, 'centered', 1), 12);
+    expect(Math.sqrt(sq)).toBeCloseTo(plantedNormRms(n, 'centered', 1), 12);
 
     // Uncentered: (mp,-1) * basis = (-ep, -1) with ep in {0,-1}^n.
     const vu = vecMat(x, buildEmbedding(target, B, 'uncentered', 1));
@@ -71,10 +72,45 @@ describe('the embedding basis', () => {
     expect(vu[n]).toBe(-1);
   });
 
-  it('expectedShortNorm is sqrt(n+t^2) centered and sqrt(n/2+t^2) uncentered', () => {
-    expect(expectedShortNorm(8, 'centered', 1)).toBeCloseTo(3, 12);
-    expect(expectedShortNorm(60, 'centered', 1)).toBeCloseTo(Math.sqrt(61), 12);
-    expect(expectedShortNorm(8, 'uncentered', 1)).toBeCloseTo(Math.sqrt(5), 12);
+  it('plantedNormRms is sqrt(n+t^2) centered and sqrt(n/2+t^2) uncentered', () => {
+    expect(plantedNormRms(8, 'centered', 1)).toBeCloseTo(3, 12);
+    expect(plantedNormRms(60, 'centered', 1)).toBeCloseTo(Math.sqrt(61), 12);
+    expect(plantedNormRms(8, 'uncentered', 1)).toBeCloseTo(Math.sqrt(5), 12);
+  });
+
+  it('the uncentered sqrt(n/2+t^2) is an RMS, and the MEAN length is strictly below it', () => {
+    // sqrt(E||v||^2) is not E||v||: ||v||^2 = K + t^2 with K ~ Binomial(n,1/2),
+    // and Jensen makes the mean strictly smaller. Both sides are computed here,
+    // the mean exactly (a finite binomial sum, no sampling).
+    for (const n of [8, 16, 32, 60]) {
+      const rms = plantedNormRms(n, 'uncentered', 1);
+      const mean = meanShortNorm(n, 'uncentered', 1);
+      expect(mean).toBeLessThan(rms);
+      // The gap is small and it shrinks with n -- which is why the wording, not
+      // the number, is what had to be fixed.
+      expect(rms - mean).toBeLessThan(0.03);
+    }
+    expect(meanShortNorm(8, 'uncentered', 1)).toBeCloseTo(2.211780, 6);
+    expect(meanShortNorm(60, 'uncentered', 1)).toBeCloseTo(5.556737, 6);
+    // The centered form has zero variance, so its mean and RMS are the same
+    // number -- there the word "expected" was never wrong.
+    for (const n of [8, 60]) {
+      expect(meanShortNorm(n, 'centered', 1)).toBeCloseTo(plantedNormRms(n, 'centered', 1), 12);
+    }
+  });
+
+  it('the exact mean matches a direct enumeration of the uncentered planted vector', () => {
+    // Independent route to the same number: enumerate every ep in {0,-1}^n for a
+    // small n and average the actual lengths, instead of trusting the binomial.
+    const n = 12;
+    const t = 1;
+    let sum = 0;
+    for (let mask = 0; mask < 1 << n; mask++) {
+      let sq = t * t;
+      for (let i = 0; i < n; i++) if (mask & (1 << i)) sq += 1;
+      sum += Math.sqrt(sq);
+    }
+    expect(sum / (1 << n)).toBeCloseTo(meanShortNorm(n, 'uncentered', t), 12);
   });
 
   it('maxAbsGram reads the largest inner product', () => {

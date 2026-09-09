@@ -19,10 +19,17 @@ on:
     branches: [main]
   workflow_dispatch:       # the post-merge dispatch below depends on this -- see 6.2
 
+# Least privilege at the top; escalation only in the job that needs it. This
+# block used to carry `pages: write` and `id-token: write` for the whole
+# workflow, which handed those scopes to every job -- including the one that runs
+# a Dependabot PR's freshly downloaded devDependencies. Only `deploy` publishes,
+# so only `deploy` gets them (see the job-level blocks below).
+#
+# A job-level `permissions:` block REPLACES this one rather than adding to it,
+# which is exactly what makes the split safe to reason about: each job's block is
+# its complete set of scopes, not a delta.
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   # NOT a bare `pages`: with cancel-in-progress that lets a pull-request run
@@ -34,12 +41,44 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # `contents: read` is for the checkout. `pages: read` is for
+    # actions/configure-pages and nothing else: at v6 its `enablement` input
+    # defaults to `false`, so it never calls the create-site endpoint -- it makes
+    # one `GET /repos/{owner}/{repo}/pages` to read the site metadata, and that
+    # endpoint is satisfied by Pages *read*. Checked against src/api-client.js at
+    # the pinned SHA: findOrCreatePagesSite() calls getPagesSite() first and only
+    # reaches enablePagesSite() when enablement is true.
+    #
+    # Neither artifact upload needs a scope here -- both authenticate with the
+    # Actions runtime token, not GITHUB_TOKEN.
+    permissions:
+      contents: read
+      pages: read
     steps:
-      - uses: actions/checkout@v7
+      # Third-party actions are pinned to the full commit SHA, not the tag: a tag
+      # is a mutable pointer the action's owner can move, so `@v7` is a promise
+      # rather than a fact, and the whole supply-chain argument for `npm ci` from
+      # a committed lock is undone if the runner's actions are floating. The
+      # trailing `# vN` is not decoration -- Dependabot reads that comment to know
+      # which version a SHA stands for, and rewrites both together, so pinning
+      # here does NOT freeze these at the audited version.
+      #
+      # Every SHA below was resolved on 2026-09-08 with
+      #   gh api repos/<owner>/<repo>/git/ref/tags/<tag>
+      # and cross-checked with `gh api repos/<owner>/<repo>/commits/<tag>`. All
+      # seven tags are lightweight, so ref/tags already names the commit.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
-          node-version: 22
+          # Read from .nvmrc rather than repeating "22" here. Finding 15 asks for
+          # a checked-in Node version file MATCHING CI, and two files both
+          # spelling the same string is a convention, not a guarantee -- this
+          # makes .nvmrc the single source and CI the consumer. It still resolves
+          # to the current 22.x line, unchanged from the previous `node-version:
+          # 22`. package.json `engines` records the floor the toolchain actually
+          # needs (vitest 5 refuses <22.12 and every odd-numbered Node line).
+          node-version-file: .nvmrc
           cache: npm
 
       # `npm ci`, not `npm install`: the committed package-lock.json is the
@@ -47,11 +86,47 @@ jobs:
       # has not been tested.
       - run: npm ci
 
-      - name: Unit tests (Vitest, incl. spec KATs)
-        run: npm test
+      # `npm run check` is the one command a fresh clone runs to reproduce this
+      # gate, but CI deliberately does NOT call it as a single step: collapsing
+      # four gates into one costs the thing that makes a failure legible here --
+      # the red step name in the run summary tells you WHICH gate rejected the
+      # change, and the auto-merge job below rests its whole safety argument on
+      # "this lab's own gate went green", which is only auditable if you can see
+      # which gate that was.
+      #
+      # The price of running the steps individually is drift: `check` could
+      # quietly stop running the claims suite and no run would notice. So assert
+      # the aggregate still composes exactly the four scripts the steps below
+      # run, in the same order. Pure string check on package.json, no
+      # dependencies, ~1s, and it fails before the browser suites rather than
+      # after them.
+      - name: Aggregate gate still matches these steps
+        run: |
+          node -e '
+            const check = (require("./package.json").scripts || {}).check || "";
+            const need = ["npm run build", "npm test", "npm run test:claims", "npm run test:a11y"];
+            let at = -1;
+            for (const n of need) {
+              const i = check.indexOf(n);
+              if (i < 0) {
+                console.error(`::error::npm run check no longer runs \`${n}\`; it is: ${check}`);
+                process.exit(1);
+              }
+              if (i < at) {
+                console.error(`::error::npm run check runs \`${n}\` out of CI order; it is: ${check}`);
+                process.exit(1);
+              }
+              at = i;
+            }
+          '
 
+      # Order below is the order `npm run check` runs them in, so the local
+      # command and CI cannot disagree about what passing means.
       - name: Build (typecheck gates the build)
         run: npm run build
+
+      - name: Unit tests (Vitest, incl. spec KATs)
+        run: npm test
 
       # NEVER `--with-deps`: that apt step wedged 547 CI runs across this fleet
       # in one afternoon, and kickoff.md bans it outright. ubuntu-latest already
@@ -71,9 +146,7 @@ jobs:
       # their correctness suites -- the ones asserting the crypto actually works
       # -- never blocked a publish. `npm test` above covers the Vitest unit
       # suite; these two cover the browser.
-      - name: Accessibility gate (axe-core, WCAG 2.1 A/AA)
-        run: npm run test:a11y
-
+      #
       # The claims suite is the correctness gate: I1 same-lattice, I2 decryption
       # bound, Break 1 recovery, the negative claims (mod-2sigma fails on a
       # non-constant-magnitude error; the descent fails on Gaussian signatures),
@@ -82,9 +155,12 @@ jobs:
       - name: Claims gate (e2e claims suite, invariants I1-I5)
         run: npm run test:claims
 
+      - name: Accessibility gate (axe-core, WCAG 2.1 A/AA)
+        run: npm run test:a11y
+
       # Traces/screenshots for whichever of the two gates failed. `if: failure()`
       # so a green run uploads nothing.
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: failure()
         with:
           name: playwright-artifacts
@@ -93,8 +169,12 @@ jobs:
             playwright-report/
           if-no-files-found: ignore
 
-      - uses: actions/configure-pages@v6
-      - uses: actions/upload-pages-artifact@v5
+      # `enablement` is left at its v6 default of false: this repo's Pages site
+      # already exists and is set to build from Actions, so this step only reads
+      # site metadata. That is what lets the job hold `pages: read` instead of
+      # `pages: write`.
+      - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5
         with:
           path: dist
 
@@ -107,12 +187,21 @@ jobs:
     if: github.event_name != 'pull_request'
     needs: build
     runs-on: ubuntu-latest
+    # The only job that publishes, so the only job holding publish rights.
+    # `pages: write` lets GITHUB_TOKEN create the Pages deployment; `id-token:
+    # write` lets the runner request the OIDC token that proves the deployment
+    # came from this workflow run. Both are documented as the minimum in
+    # actions/deploy-pages' README at the pinned SHA. No `contents:` scope: this
+    # job never checks out the repository, it only hands Pages an artifact id.
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v5
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5
 
   # Dependabot only. `needs: build` is the whole safety argument -- a bump can
   # only merge itself once this lab's own gate (Vitest units, typecheck+build,
@@ -135,7 +224,7 @@ jobs:
       # @v3, not the @v2 that _MASTER-TEMPLATE.md section 6.1 still prints: the
       # fleet moved and is now 188 of 189 on v3.
       - id: meta
-        uses: dependabot/fetch-metadata@v3
+        uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3
 
       # Majors included on purpose. `needs:` above already required the whole
       # gate to pass, and that gate judges a bump far better than its version

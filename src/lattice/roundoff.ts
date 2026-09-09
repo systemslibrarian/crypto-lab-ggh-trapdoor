@@ -5,14 +5,23 @@
  * and adds a small error; decryption is Babai's round-off (Babai, Combinatorica
  * 1986), which is the same three lines of arithmetic whichever basis you hand
  * it. The private basis makes it work and the public basis does not, and the
- * single number that decides is invariant I2.
+ * single number that decides is invariant I2 -- strictly, the number decides
+ * everywhere except on its own boundary, where the tie rule does; see
+ * `decryptBound`.
  */
 
 import type { Ciphertext, DecryptBound, GghKey, Mat, Rng, Vec } from './types';
 import { maxAbsVec, randInt, rnd, roundVec, vecMat } from './matrix';
 import { SIGMA } from './keygen';
 
-/** Encrypt: c = m*B + e with every entry of e drawn from {+sigma, -sigma}. */
+/**
+ * Encrypt: c = m*B + e with every entry of e drawn from {+sigma, -sigma}.
+ *
+ * `sigma` is a real parameter here: every function in this file is written in
+ * terms of it and works for any positive value. That is NOT true everywhere --
+ * Break 1's mod-2*sigma step is implemented over GF(2) and GF(3) and so is fixed
+ * at sigma = 3; see `BreakableSigma` in keygen.ts.
+ */
 export function encrypt(m: Vec, B: Mat, rng: Rng, sigma: number = SIGMA): Ciphertext {
   const c = vecMat(m, B);
   const e = new Float64Array(B.length);
@@ -96,14 +105,31 @@ export function decrypt(c: Vec, key: GghKey, Rinv: Mat, Binv: Mat): Vec {
 /**
  * Invariant I2 for one ciphertext under one basis.
  *
- * Round-off with a basis succeeds if and only if every entry of e * basisInv is
- * strictly less than 1/2 in absolute value: that quantity is exactly how far the
- * error displaces the coordinate vector, and rounding recovers the right lattice
- * point precisely when no coordinate is pushed past the half-way mark.
+ * Write x = e * basisInv and let z be the true lattice point's integer
+ * coordinate vector in the same basis, so round-off rounds z + x. Then, exactly:
  *
- * This is an exact iff and it is basis-generic -- the same criterion, the same
- * ciphertext, one number, and the trapdoor is the only thing that makes that
- * number small. Measured with zero mismatches over 5,600 ciphertexts: ~0.29-0.69
+ *     max_j |x_j| <  1/2   round-off ALWAYS recovers the point;
+ *     max_j |x_j| >  1/2   round-off ALWAYS fails (some coordinate has a nearer
+ *                          integer than z_j, and rounding returns that one);
+ *     max_j |x_j| == 1/2   TIE-DEPENDENT: the outcome is decided by the tie rule
+ *                          and by z, which `decryptBound` cannot see.
+ *
+ * So `actual < 0.5` is a sufficient condition that never lies, and `actual > 0.5`
+ * is a sufficient condition for failure. It is NOT an iff at the boundary. With
+ * this lab's `rnd` (half AWAY from zero, matrix.ts) the tie resolves coordinate
+ * by coordinate: at x_j = +1/2 the point survives iff z_j <= -1, at x_j = -1/2
+ * iff z_j >= 1 -- i.e. exactly when the error pushes that coordinate TOWARDS
+ * zero. `roundOffSucceedsExactly` evaluates that rule with no ambiguity left, and
+ * roundoff.test.ts builds one tie that succeeds and one that fails.
+ *
+ * Ties are a measure-zero event for a generic basis and are never observed on the
+ * shipped path: e has entries +-sigma and basisInv is a generic float matrix, so
+ * an exact 1/2 needs an exact cancellation. Measured, the strict criterion agreed
+ * with the actual round-off in 5,600 of 5,600 ciphertexts -- but "no tie occurred
+ * in 5,600 draws" is what that measurement shows, not that ties cannot occur.
+ *
+ * The criterion is basis-generic -- the same one number for the private and the
+ * public basis, and the trapdoor is the only thing that makes it small: ~0.29-0.69
  * with the private basis versus 7.3-15.3 with the public one.
  */
 export function decryptBound(e: Vec, basisInv: Mat, sigma: number = SIGMA): DecryptBound {
@@ -116,6 +142,32 @@ export function decryptBound(e: Vec, basisInv: Mat, sigma: number = SIGMA): Decr
     guaranteed: worstCase < 0.5,
     margin: actual === 0 ? Infinity : 0.5 / actual,
   };
+}
+
+/**
+ * The exact round-off criterion, ties included.
+ *
+ * `x` is the displacement e * basisInv and `z` is the true lattice point's
+ * integer coordinate vector in that same basis; round-off returns the point iff
+ * rnd(z_j + x_j) == z_j for every j, which is what this evaluates. It needs z, so
+ * it is an EXHIBIT (the attacker has no z), and it exists so that the boundary
+ * case of invariant I2 is decided by running the actual rounding rule rather than
+ * by a claim about it.
+ *
+ * Off the boundary it agrees with `decryptBound(...).predictsSuccess` by the
+ * argument in that function's comment; at |x_j| == 1/2 it is the only one of the
+ * two that is right.
+ */
+export function roundOffSucceedsExactly(x: Vec, z: Vec): boolean {
+  for (let j = 0; j < x.length; j++) if (rnd(z[j] + x[j]) !== z[j]) return false;
+  return true;
+}
+
+/** How many coordinates of `x` sit exactly on the 1/2 boundary. Zero on every measured ciphertext. */
+export function tieCount(x: Vec): number {
+  let ties = 0;
+  for (const v of x) if (Math.abs(v) === 0.5) ties++;
+  return ties;
 }
 
 /**

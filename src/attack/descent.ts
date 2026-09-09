@@ -9,15 +9,46 @@
  *
  *     u - delta*grad = (1 - delta/12) u + (delta/30) sum a_i^3 q_i
  *
- * and since normalising kills any positive scalar, this is exactly
+ * and while 1 - delta/12 > 0, normalising kills that positive scalar, so this is
  *
  *     u <- normalize( u + c * sum a_i^3 q_i ),   c = (delta/30) / (1 - delta/12).
  *
  * That is a POWER ITERATION on a_i^3 -- each step cubes the coordinates in the
- * hidden frame and renormalises, so the largest a_i runs away from the rest. It
- * is singular at delta = 12, where the u term vanishes and c blows up. Knowing
- * this changes how delta should be picked: delta is not a stability parameter to
- * be kept small, it is a gear ratio.
+ * hidden frame and renormalises, so the largest a_i runs away from the rest.
+ * Knowing this changes how delta should be picked: delta is not a stability
+ * parameter to be kept small, it is a gear ratio.
+ *
+ * WHAT HAPPENS AT delta = 12, AND WHY IT IS NOT A SINGULARITY. c has a pole
+ * there, but the pole belongs to the FACTORED form, not to the update. The
+ * original step is perfectly well defined at 12: the u term vanishes and it
+ * becomes
+ *
+ *     u <- normalize( (12/30) * sum a_i^3 q_i ) = normalize( sum a_i^3 q_i ),
+ *
+ * a PURE cubic power iteration with no memory of the previous iterate at all --
+ * the cleanest form of the rule, not a breakdown of it. c -> infinity says
+ * exactly that: the cubic term has become infinitely dominant over a u term that
+ * is no longer there.
+ *
+ * Above 12 the u coefficient turns negative, so the step subtracts the previous
+ * iterate, u <- normalize( (delta/30) S - (delta/12 - 1) u ). Still defined,
+ * still convergent while the subtracted part stays small next to the cubic one --
+ * and that is where it eventually fails, not at 12. Measured with the protocol
+ * below on one frame (seed 20260908, starts from makeRng(777), maxIter 400):
+ *
+ *     delta   hit    converged   mean iters   ms/start
+ *     9       88.3%    100%          42         5.9
+ *     11.5    90.0%    100%          22         3.0
+ *     11.9    90.0%    100%          19         2.6
+ *     12      90.0%    100%          19         2.6      <- the pure cubic step
+ *     12.1    90.0%    100%          18         2.5
+ *     13      38.3%     40%         253        34.9      <- the u term starts to bite
+ *     15       0.0%      0%         400        54.7      <- dead
+ *
+ * (Hit rates in that sweep sit at 88-90% where the table below reads 100%: it
+ * draws its own frame, not the table's. What it is used for is the comparison
+ * across delta within itself, which uses the same frame and the same starts at
+ * every row.)
  *
  * DELTA, MEASURED (n=16, N=8000, 60 random starts; hit = sum a^4 > 0.99, i.e.
  * |cos(u, q_i)| > 0.9975):
@@ -36,9 +67,12 @@
  * and they all land in the same place (best |cos| 0.9891 to 0.9894). So delta
  * controls SPEED, not ACCURACY -- accuracy is bought with samples, and nothing
  * else. delta = 9 is shipped because it is 10x faster than the paper's 0.7 at
- * identical accuracy while staying a comfortable distance from the singularity at
- * 12; delta = 11.5 is another 2x faster and sits right next to it, which is a bad
- * trade for a demo that has to be reliable on somebody else's machine.
+ * identical accuracy and sits well inside the region where the u term still has
+ * the sign the derivation assumes. The remaining speedup from 9 to 12 is 42
+ * iterations down to 19, about 2x, and it is bought by moving towards a cliff
+ * whose edge is between 12.1 and 13 on the sweep above and is a property of the
+ * sample set rather than of the algebra. That is a bad trade for a demo that has
+ * to be reliable on somebody else's machine.
  *
  * RESTARTS. Each descent converges to ONE row, chosen by which basin the random
  * start fell into, so recovering all n rows is a coupon-collector problem needing
@@ -63,9 +97,28 @@ export const DEFAULT_TOL = 1e-9;
 export const DEFAULT_DEDUPE = 0.99;
 
 /**
- * The power-iteration gain the step rule is really applying:
- * c = (delta/30) / (1 - delta/12). Singular at delta = 12; negative above it,
- * which turns the descent into an ascent and never converges to a row.
+ * The two coefficients the step rule really has:
+ *
+ *     u - delta*grad = uTerm * u + cubicTerm * sum a_i^3 q_i
+ *
+ * at |u| = 1. `uTerm` is 0 exactly at delta = 12 and negative above it. This is
+ * the form that stays defined everywhere; `powerIterationCoefficient` is their
+ * ratio, which is not.
+ */
+export function stepCoefficients(delta: number): { uTerm: number; cubicTerm: number } {
+  return { uTerm: 1 - delta / 12, cubicTerm: delta / 30 };
+}
+
+/**
+ * The power-iteration gain the step rule applies WHILE the u term is positive:
+ * c = (delta/30) / (1 - delta/12).
+ *
+ * The pole at delta = 12 is a pole of this RATIO, not of the update. At delta =
+ * 12 the u term is exactly zero and the step is the pure cubic power iteration
+ * u <- normalize(sum a_i^3 q_i), which converges fastest of all -- see the file
+ * header for the measured sweep through and past 12. Read a non-finite or
+ * negative value here as "the u term has vanished or reversed", not as "the
+ * iteration has broken".
  */
 export function powerIterationCoefficient(delta: number): number {
   return delta / 30 / (1 - delta / 12);

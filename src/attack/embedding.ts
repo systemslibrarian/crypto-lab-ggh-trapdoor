@@ -13,8 +13,10 @@
  * TWO FORMS.
  *
  *   uncentered   rows [B | 0] and [cpp | t].  (mp,-1)*basis = (-ep, -t) with
- *                ep in {0,-1}^n, so the planted vector has expected length
- *                sqrt(n/2 + t^2) and its actual length varies with the ciphertext.
+ *                ep in {0,-1}^n, so the planted vector has ROOT-MEAN-SQUARE
+ *                length sqrt(n/2 + t^2) -- E||v||^2 is n/2 + t^2 exactly, and the
+ *                square root of that is not the mean length -- and its actual
+ *                length varies with the ciphertext.
  *
  *   centered     rows [2B | 0] and [d | t] with d = 2*cpp + (1,...,1).  Now
  *                (mp,-1)*basis = (-f, -t) with f = 2*ep + 1 in {+1,-1}^n, so the
@@ -35,8 +37,9 @@
  * What the centered form does buy, measured here, is the observable. Its shortest
  * reduced row came out at EXACTLY sqrt(n+1) on all 60 honest runs -- min == max ==
  * 3.000000, 4.123106, 5.744563, 7.810250 at n = 8, 16, 32, 60 -- whereas the
- * uncentered form's fluctuated (1.732051..2.449490 at n=8 against an expected
- * 2.236068). A constant is a usable pass/fail test; a distribution is not.
+ * uncentered form's fluctuated (1.732051..2.449490 at n=8, around an RMS of
+ * 2.236068 and a mean of 2.211780). A constant is a usable pass/fail test; a
+ * distribution is not.
  *
  * So: centered is the default because it never loses, it is strictly more robust
  * once the margin narrows, and its {+1,-1} readout is both a nicer thing to show a
@@ -168,18 +171,47 @@ export function buildEmbedding(target: Vec, B: Mat, form: EmbeddingForm, t = 1):
 }
 
 /**
- * Length of the vector the embedding plants.
+ * Root-mean-square length of the vector the embedding plants: sqrt(E||v||^2).
  *
- * Centered: EXACT, because f in {+1,-1}^n has squared length n whatever the
- * ciphertext was. Uncentered: an expectation, because ep in {0,-1}^n has about
- * n/2 nonzero entries and the actual length fluctuates. Measured on honest
- * ciphertexts, the centered form's shortest reduced row hit this value on the
- * nose in 60/60 runs (min == max at n = 8, 16, 32, 60), while the uncentered
- * form's ranged over 1.732051..2.449490 at n=8 around an expected 2.236068. That
- * is why the centered form is the one whose norm is used as a pass/fail test.
+ * Centered: EXACT, and the mean and the RMS coincide, because f in {+1,-1}^n has
+ * squared length n whatever the ciphertext was -- zero variance, so there is
+ * nothing for the two to disagree about.
+ *
+ * Uncentered: this is sqrt(E||v||^2) and NOT E||v||. ep in {0,-1}^n has a
+ * Binomial(n, 1/2) number of nonzero entries, so E||v||^2 = n/2 + t^2 exactly,
+ * while the mean length is strictly smaller by Jensen -- 2.211780 against
+ * 2.236068 at n=8, 5.556737 against 5.567764 at n=60 (`meanShortNorm` computes
+ * both exactly). The gap is small and it is not zero, which is why the name says
+ * which of the two numbers this is.
+ *
+ * Measured on honest ciphertexts, the centered form's shortest reduced row hit
+ * this value on the nose in 60/60 runs (min == max at n = 8, 16, 32, 60), while
+ * the uncentered form's ranged over 1.732051..2.449490 at n=8. That is why the
+ * centered form is the one whose norm is used as a pass/fail test.
  */
-export function expectedShortNorm(n: number, form: EmbeddingForm, t = 1): number {
+export function plantedNormRms(n: number, form: EmbeddingForm, t = 1): number {
   return Math.sqrt((form === 'centered' ? n : n / 2) + t * t);
+}
+
+/**
+ * MEAN Euclidean length of the planted vector -- the quantity `plantedNormRms`
+ * is not, computed exactly rather than sampled.
+ *
+ * ||v||^2 = K + t^2 with K ~ Binomial(n, 1/2) for the uncentered form, so
+ * E||v|| = 2^-n * sum_k C(n,k) * sqrt(k + t^2), a finite sum with no Monte Carlo
+ * anywhere in it. For the centered form the length is deterministic and this
+ * returns the same value as `plantedNormRms`.
+ */
+export function meanShortNorm(n: number, form: EmbeddingForm, t = 1): number {
+  if (form === 'centered') return Math.sqrt(n + t * t);
+  // log C(n,k) accumulated by ratio, so n=60 never forms a 10^17 binomial.
+  let logBinom = 0;
+  let mean = 0;
+  for (let k = 0; k <= n; k++) {
+    if (k > 0) logBinom += Math.log((n - k + 1) / k);
+    mean += Math.exp(logBinom - n * Math.LN2) * Math.sqrt(k + t * t);
+  }
+  return mean;
 }
 
 /** Largest |<row_i, row_j>| in the Gram matrix -- the magnitude the float path must resolve. */
@@ -219,9 +251,16 @@ export interface EmbeddingCandidate {
 export interface EmbeddingReadOff {
   /** Shortest row norm LLL actually produced. */
   readonly minRowNorm: number;
-  /** What it should be if the ciphertext was honest. */
+  /**
+   * The reference length an honest ciphertext produces: `plantedNormRms`.
+   *
+   * Exact for the centered form -- sqrt(n+t^2) every time, which is what makes
+   * the ratio below a test. For the uncentered form it is the root mean square
+   * of a genuinely varying length, not the mean and not a guarantee, so a ratio
+   * near 1 means less there.
+   */
   readonly expectedNorm: number;
-  /** minRowNorm / expectedNorm. 1.000 on every honest run measured; 3-4 when tampered. */
+  /** minRowNorm / expectedNorm. 1.000 on every honest CENTERED run measured; 3-4 when tampered. */
   readonly normRatio: number;
   /** Some row's head matched the {+1,-1} (resp. {0,-1}) pattern. */
   readonly patternFound: boolean;
@@ -288,7 +327,7 @@ export function readOffCandidates(
 
   found.sort((a, b) => a.norm - b.norm);
   const candidates = found.filter((c) => c.exact);
-  const expectedNorm = expectedShortNorm(n, form, t);
+  const expectedNorm = plantedNormRms(n, form, t);
   const minRowNorm = shortestRowNorm(rows);
   return {
     minRowNorm,

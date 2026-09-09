@@ -8,8 +8,10 @@ NEW DEMO BRIEF
                      nearly-orthogonal basis. Both historic breaks attack the trapdoor's *shape*,
                      not lattice hardness: Nguyen 1999 exploits a too-regular error vector,
                      Nguyen-Regev 2006 exploits the parallelepiped that round-off signatures leak.
-                     Falcon's Gaussian sampling and ML-KEM's binomial errors exist because of
-                     these two papers.
+                     Falcon's Gaussian sampling answers the second paper directly; ML-KEM's
+                     binomial errors are why the first has no analogue there. (Amended: the
+                     original "exist because of these two papers" is a stronger causal claim
+                     than the sources support for ML-KEM.)
 - Primitives/spec:   Integer lattices (dim 8-60), Babai round-off (Babai 1986), LLL (in-browser,
                      real), Hermite normal form public key (Micciancio 2001 variant, shown as the
                      fix for pk size), Nguyen 1999 mod-2sigma reduction + embedding attack,
@@ -65,12 +67,20 @@ SECURITY / CORRECTNESS INVARIANTS
  I1. Both bases must provably span the same lattice: compute integer
      U = B·R^-1 and V = R·B^-1 and verify U·V = I over the integers;
      display U.
- I2. Decryption correctness is a bound, not a claim: round-off with R
-     succeeds iff |e·R^-1|_inf < 1/2. Compute and display it per ciphertext.
+ I2. Decryption correctness is a bound, not a claim: round-off with R succeeds
+     whenever |e·R^-1|_inf < 1/2 and fails whenever it exceeds 1/2; equality is
+     decided by the tie rule and the integer coordinate. Compute and display it
+     per ciphertext. (Amended: "iff" is false at exactly 1/2; both tie outcomes
+     are now constructed deliberately in roundoff.test.ts.)
  I3. Break 1's mod-2sigma step must be exact linear algebra mod 6, never
      a heuristic; when B is singular mod 6 the act says so and re-keys.
  I4. Break 2 recovers R up to sign/permutation only — display and
-     check that, don't claim "recovered R".
+     check that, don't claim "recovered R". (Amended after audit: forging and
+     recovering are TWO independent outcomes. Accepted forgeries prove only that
+     the candidate is a good basis of the lattice; only the lab, holding the
+     secret, can say whether it is the secret one. The page renders both and
+     never collapses them. Sample cost is reported as training + held-out =
+     total observed, never as the training half alone.)
  I5. Every "attack succeeded" is checked against the real decryptor /
      real signature verifier, not by comparing to the secret.
 
@@ -83,9 +93,11 @@ ARCHITECTURE
  LLL carries leading principal minors of the Gram matrix, which overflow
  Number long before dim 60, so the fraction-free route is not taken. The
  measured figures are recorded in the README's Build & Verify section.)
- LLL in a Web Worker so the UI never blocks. Round-off, mod-6 solve,
- whitening, and descent are separate modules with no shared code path to
- the break-check.
+ Round-off, mod-6 solve, whitening, and descent are separate modules with no
+ shared code path to the break-check. (Amended: the brief puts LLL in the Web
+ Worker, but measured it does not block -- the whole of Break 1 is 4.6 ms at
+ n=60, of which LLL is 2.9 ms. The fourth-moment DESCENT is what blocks, at
+ ~1-3 s, so that is what runs in the worker.)
 
 UI
  Dimension slider · sigma selector · basis pair viewer · ciphertext strip
@@ -129,6 +141,17 @@ CITATIONS (verified before this brief)
    problem", Combinatorica 1986.
  Micciancio — "Improving lattice based cryptosystems using the Hermite
    normal form", CaLC 2001.
+
+POST-BUILD AMENDMENT (external audit, 2026-09-08)
+ An audit scored the first release 7.8/10 and found one thing the brief did not
+ anticipate: at dimensions 8-60 ordinary LLL on the PUBLIC basis alone already
+ recovers a basis as good as the private one (12/12 seeded keys per dimension,
+ 60/60 ciphertexts decrypted). That is not a defect -- it is why GGH was proposed
+ at 200-400 -- but the lab was implying a security property it does not have at
+ these sizes. A public-LLL baseline exhibit was added between Acts 2 and 3, and
+ every headline claim is now scoped to raw-basis Babai. The HNF act, listed above
+ as a toggle, was also shipped for real: it had been implemented and tested but
+ never wired into the page while the README described it as an exhibit.
 
 VERIFY BEFORE BUILD (do not assume)
  - grep the catalog for GGH, Babai, parallelepiped, NTRUSign — the live

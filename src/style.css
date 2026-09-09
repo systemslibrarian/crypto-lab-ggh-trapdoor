@@ -144,6 +144,33 @@ body {
   margin-bottom: 0;
 }
 
+/* The three-step core path. A signpost, not a wizard: every act stays rendered
+   and reachable, and an expert can ignore this entirely. */
+.core-path {
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border));
+  border-radius: var(--radius);
+  background: color-mix(in oklab, var(--accent) 5%, transparent);
+  padding: 0.8rem 1.05rem;
+  margin-bottom: 1.5rem;
+}
+.core-path-lede {
+  margin: 0 0 0.5rem;
+  font-size: 0.9rem;
+  color: var(--text) !important;
+  font-weight: 600;
+}
+.core-path ol {
+  margin: 0;
+  padding-left: 1.2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.9rem;
+}
+.core-path a {
+  color: var(--accent-text);
+}
+
 /* ---------- controls ---------- */
 .controls {
   margin-bottom: 1.75rem;
@@ -252,6 +279,13 @@ select {
   border-color: var(--border);
 }
 
+/* The error-mode control sits inside Act 2 rather than the global bar, so it
+   needs to read as part of that experiment and not as a page-level parameter. */
+.control-inline {
+  max-width: 28rem;
+  margin-bottom: 0.9rem;
+}
+
 /* ---------- acts ---------- */
 .act {
   border-top: 1px solid var(--border);
@@ -308,13 +342,70 @@ select {
   color: var(--text-muted) !important;
   margin-top: 0;
 }
-canvas {
-  max-width: 100%;
-  height: auto;
+/* The canvas is sized by CSS and its backing store is matched to the real box
+   times devicePixelRatio in plot.ts. It used to carry a fixed 720x360 bitmap,
+   which a 320 px viewport squashed to 241x120 and made the painted labels
+   unreadable. Legends are HTML now, for the same reason. */
+canvas.plot {
   display: block;
+  width: 100%;
+  height: clamp(180px, 42vw, 360px);
   background: var(--surface-2);
   border: 1px solid var(--border);
   border-radius: 8px;
+}
+.plot-legend {
+  list-style: none;
+  margin: 0.55rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.82rem;
+  color: var(--text-dim);
+}
+.plot-legend li {
+  display: flex;
+  align-items: baseline;
+  gap: 0.45rem;
+}
+.plot-swatch {
+  flex: 0 0 auto;
+  width: 0.85rem;
+  height: 0.2rem;
+  border-radius: 2px;
+  transform: translateY(-0.15em);
+}
+
+/* Progressive disclosure: full matrices, proof internals and citations sit
+   behind native <details> so the core path is short and the expert can still
+   inspect everything without leaving the page. */
+details {
+  margin: 0.6rem 0 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+details > summary {
+  cursor: pointer;
+  padding: 0.5rem 0.7rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--accent-text);
+  border-radius: 8px;
+}
+details > summary:focus-visible {
+  outline: 2px solid var(--accent-text);
+  outline-offset: 2px;
+}
+details[open] > summary {
+  border-bottom: 1px solid var(--border);
+}
+details > *:not(summary) {
+  padding: 0 0.7rem;
+}
+details > *:last-child {
+  padding-bottom: 0.6rem;
 }
 
 /* ---------- verdicts ---------- */
@@ -372,6 +463,55 @@ canvas {
 .verdict-idle .verdict-icon,
 .verdict-idle .verdict-label {
   color: var(--text-muted);
+}
+
+/* Act 2's two persistent result cells. Both decryptions of the SAME ciphertext
+   stay on screen together -- that side-by-side is the lesson, so it must not be
+   destroyed by running the second one. */
+.result-cell {
+  border: 1px solid;
+  border-radius: 8px;
+  padding: 0.55rem 0.75rem;
+  margin-bottom: 0.55rem;
+  font-size: 0.92rem;
+}
+.result-cell.verdict-ok {
+  background: var(--ok-bg);
+  border-color: var(--ok);
+}
+.result-cell.verdict-bad {
+  background: var(--bad-bg);
+  border-color: var(--bad);
+}
+.result-head {
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+.result-cell.verdict-ok :is(.verdict-icon, .verdict-label) {
+  color: var(--ok);
+}
+.result-cell.verdict-bad :is(.verdict-icon, .verdict-label) {
+  color: var(--bad);
+}
+.result-basis {
+  color: var(--text) !important;
+  font-weight: 600;
+}
+.result-detail {
+  margin: 0.3rem 0 0;
+  color: var(--text-dim) !important;
+  font-size: 0.88rem;
+}
+.result-compare {
+  margin: 0.2rem 0 0;
+  padding: 0.55rem 0.7rem;
+  border-left: 3px solid var(--accent);
+  background: color-mix(in oklab, var(--accent) 7%, transparent);
+  color: var(--text) !important;
+  font-size: 0.9rem;
 }
 
 /* ---------- data readouts ---------- */

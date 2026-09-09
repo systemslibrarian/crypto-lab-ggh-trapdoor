@@ -2,8 +2,22 @@
   "name": "crypto-lab-ggh-trapdoor",
   "private": true,
   "version": "0.1.0",
+  "description": "Browser demo of the GGH trapdoor: the same lattice under a good private basis and a bad public one, with both classical breaks checked against the real decryptor and the real verifier.",
+  "license": "MIT",
+  "author": "Paul Clark",
+  "homepage": "https://systemslibrarian.github.io/crypto-lab-ggh-trapdoor/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/systemslibrarian/crypto-lab-ggh-trapdoor.git"
+  },
   "type": "module",
+  "engines": {
+    "node": "^22.12.0 || ^24.0.0 || >=26.0.0",
+    "npm": ">=10.9.0"
+  },
+  "packageManager": "npm@10.9.8",
   "scripts": {
+    "check": "npm run build && npm test && npm run test:claims && npm run test:a11y",
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
@@ -11,7 +25,9 @@
     "test:watch": "vitest",
     "test:a11y": "playwright test --project=a11y",
     "test:claims": "playwright test --project=claims",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "evidence": "node scripts/evidence.mjs",
+    "mutate": "node scripts/mutate.mjs"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",

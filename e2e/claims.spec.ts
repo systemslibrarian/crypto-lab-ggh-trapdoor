@@ -101,7 +101,11 @@ test('C1: the same-lattice verdict agrees with the four checks it lists', async 
   }
 
   // Re-derivation: the page prints the largest value it touched and the headroom
-  // under 2^53 as two separate numbers. Recompute one from the other.
+  // under 2^53 as two separate numbers. Recompute one from the other. They live
+  // behind a disclosure now (progressive depth), so open it the way a reader
+  // would rather than reaching into hidden DOM.
+  await page.locator('#i1-internals > summary').click();
+  await expect(page.locator('#i1-internals')).toHaveAttribute('open', '');
   const largest = Number(await kv(page, SELECTORS.i1, 'largest value touched'));
   const headroomText = await kv(page, SELECTORS.i1, 'headroom under');
   const headroom = Number(headroomText.replace(/x$/, ''));
@@ -369,11 +373,29 @@ test("C5/C5': Break 2 reports a measured signature count and never fakes success
     // C5. Success is only ever claimed off the REAL verifier accepting forgeries,
     // and the page must say the recovery is up to sign and order (invariant I4).
     expect(text).toMatch(/up to sign and permutation/i);
-    expect(text).toMatch(/accepted every one/i);
+    expect(text).toMatch(/accepted by the real verifier/i);
     expect(text, 'the page must never claim it recovered R itself').not.toMatch(/recovered R\b/);
     // The public statistic must agree with the claim: round-off leaks, so the
     // held-out fourth-moment statistic is near 1.
     expect(heldOut).toBeGreaterThan(0.5);
+
+    // Audit finding 3: the two outcomes are rendered INDEPENDENTLY, and only one
+    // of them is something an attacker could compute.
+    const checksText = await page.locator('#break2-checks').innerText();
+    expect(checksText).toMatch(/Forgery check \(attacker-observable\)/);
+    expect(checksText).toMatch(/Ground-truth recovery \(lab only\)/);
+
+    // Sample accounting: training, held out, and total must all be named, and
+    // the total must be exactly twice the training half. Reporting recovery
+    // "from N" understated the oracle cost by half.
+    const training = Number(await kv(page, SELECTORS.sigCounter, 'signatures consumed'));
+    const held = Number(await kv(page, SELECTORS.sigCounter, 'signatures held out'));
+    const total = Number(await kv(page, SELECTORS.sigCounter, 'total oracle signatures'));
+    expect(held).toBe(training);
+    expect(total).toBe(2 * training);
+    // And the prose must quote the total, not just the training half.
+    expect(text).toContain(String(total));
+    expect(text).toMatch(/oracle signatures observed/i);
   } else {
     // Honest failure: the cap is reported, nothing is claimed.
     expect(text).toMatch(/cap was \d+/i);
@@ -415,6 +437,97 @@ test("C5': Gaussian signatures defeat the same attack, judged on held-out data",
   expect(120 * (1 / 48 - mom4)).toBeCloseTo(heldOut, 2);
 });
 
+// ───────────────────────── Act 2, the central comparison ─────────────────────
+// Acceptance criteria for audit finding 4. Both of these were real defects:
+// captions accumulated until three contradictory ones were on screen at once,
+// and the second decryption erased the first, destroying the comparison.
+
+test('Act 2: exactly one ciphertext caption survives any sequence of encryptions', async ({
+  page,
+}) => {
+  await open(page);
+  const caption = page.locator('#ciphertext-caption');
+
+  await page.click(SELECTORS.encrypt);
+  await page.click(SELECTORS.encrypt);
+  await page.click(SELECTORS.encrypt);
+  await expect(page.locator('#ciphertext-caption')).toHaveCount(1);
+  const afterThree = await caption.innerText();
+  expect(afterThree).toMatch(/Every entry is \+-3/);
+
+  // Switching the error mode must REPLACE the caption, not add a contradictory
+  // one beside it.
+  await page.selectOption(SELECTORS.sigma, 'uniform');
+  await page.click(SELECTORS.encrypt);
+  await expect(page.locator('#ciphertext-caption')).toHaveCount(1);
+  const afterMode = await caption.innerText();
+  expect(afterMode).toMatch(/coordinates are not \+-3/);
+  expect(afterMode, 'the stale congruent caption must be gone').not.toMatch(/Every entry is \+-3/);
+
+  // And the page must not be asserting both things anywhere at once.
+  const act2 = await page.locator('#act-2').innerText();
+  const congruentClaims = (act2.match(/Every entry is \+-3/g) ?? []).length;
+  expect(congruentClaims).toBe(0);
+});
+
+test('Act 2: both decryptions of the same ciphertext stay visible together', async ({ page }) => {
+  await open(page);
+  await page.click(SELECTORS.encrypt);
+  await page.click(SELECTORS.decryptPrivate);
+  await expect(page.locator('#result-private')).toBeVisible();
+
+  await page.click(SELECTORS.decryptPublic);
+  // The whole point: running the second decryption must NOT erase the first.
+  await expect(page.locator('#result-private'), 'the private result must survive').toBeVisible();
+  await expect(page.locator('#result-public')).toBeVisible();
+  await expect(page.locator('#result-private')).toHaveAttribute('data-outcome', 'pass');
+  await expect(page.locator('#result-public')).toHaveAttribute('data-outcome', 'fail');
+
+  // Each cell names its basis, its deciding number, and its re-encryption outcome.
+  const priv = await page.locator('#result-private').innerText();
+  const pub = await page.locator('#result-public').innerText();
+  expect(priv).toMatch(/private basis R/);
+  expect(priv).toMatch(/Deciding number [\d.]+/);
+  expect(priv).toMatch(/Re-encryption confirms/);
+  expect(priv).toMatch(/as the bound predicted/);
+  expect(pub).toMatch(/public basis B/);
+  expect(pub).toMatch(/Deciding number [\d.]+/);
+  expect(pub).toMatch(/Re-encryption rejects/);
+
+  // The comparison sentence ties them together and quotes both numbers.
+  const compare = await page.locator('.result-compare').innerText();
+  expect(compare).toMatch(/[Oo]nly the basis changed/);
+  const nums = [...compare.matchAll(/(\d+\.\d+)/g)].map((m) => Number(m[1]));
+  expect(nums.length).toBeGreaterThanOrEqual(2);
+  expect(nums[0], 'the private bound must be the smaller one').toBeLessThan(nums[1]);
+});
+
+test('Act 2: the reverse click order also leaves both results visible', async ({ page }) => {
+  await open(page);
+  await page.click(SELECTORS.encrypt);
+  await page.click(SELECTORS.decryptPublic);
+  await expect(page.locator('#verdict-decrypt')).toHaveAttribute('data-verdict', 'fail');
+  await page.click(SELECTORS.decryptPrivate);
+  await expect(page.locator('#verdict-decrypt')).toHaveAttribute('data-verdict', 'pass');
+  await expect(page.locator('#result-private')).toBeVisible();
+  await expect(page.locator('#result-public')).toBeVisible();
+});
+
+test('Act 2: a fresh encryption retires both stale decryption results', async ({ page }) => {
+  await open(page);
+  await page.click(SELECTORS.encrypt);
+  await page.click(SELECTORS.decryptPrivate);
+  await page.click(SELECTORS.decryptPublic);
+  await expect(page.locator('#result-private')).toBeVisible();
+
+  // A new key retires everything: the old results describe a ciphertext that no
+  // longer exists.
+  await page.click(SELECTORS.keygen);
+  await expect(page.locator('#result-private')).toHaveCount(0);
+  await expect(page.locator('#result-public')).toHaveCount(0);
+  await expect(page.locator('#ciphertext-caption')).toBeEmpty();
+});
+
 // ───────────────────────────── retirement + no-op guard ──────────────────────
 
 test('retirement: a new key clears every stale verdict', async ({ page }) => {
@@ -453,6 +566,34 @@ test('retirement: changing the error mode clears the verdicts it invalidates', a
   await expect(page.locator(NEGATIVE_CLAIM)).toBeEmpty();
 });
 
+test('retirement is SCOPED: the error mode does not retire Act 4', async ({ page }) => {
+  // Audit finding 10. The error distribution is a property of GGH ENCRYPTION.
+  // Act 4 attacks a signature scheme, with its own key, and never reads it, so
+  // retiring a finished Break 2 because the encryption error changed would be
+  // discarding a result that is still valid.
+  test.setTimeout(10 * 60 * 1000);
+  await open(page);
+  await page.click(SELECTORS.break2Run);
+  await expect(page.locator(SELECTORS.verdictBreak2)).toHaveAttribute(
+    'data-verdict',
+    /^(alarm|fail)$/,
+    { timeout: 8 * 60 * 1000 },
+  );
+  const before = await page.locator(SELECTORS.verdictBreak2).innerText();
+
+  await page.selectOption(SELECTORS.sigma, 'uniform');
+  await settle(page);
+  await expect(
+    page.locator(SELECTORS.verdictBreak2),
+    'Act 4 does not depend on the encryption error distribution',
+  ).not.toBeEmpty();
+  expect(await page.locator(SELECTORS.verdictBreak2).innerText()).toBe(before);
+
+  // A NEW KEY, by contrast, does invalidate it.
+  await page.click(SELECTORS.keygen);
+  await expect(page.locator(SELECTORS.verdictBreak2)).toBeEmpty();
+});
+
 test('no-op guard: re-selecting the SAME error mode does not retire a fresh verdict', async ({
   page,
 }) => {
@@ -468,6 +609,179 @@ test('no-op guard: re-selecting the SAME error mode does not retire a fresh verd
   await settle(page);
   await expect(page.locator(SELECTORS.verdictDecrypt)).toHaveAttribute('data-verdict', 'pass');
   expect(await page.locator(SELECTORS.verdictDecrypt).innerText()).toBe(before);
+});
+
+// ─────────────────── the public-LLL baseline (audit finding 1) ───────────────
+
+test('baseline: LLL on the PUBLIC basis alone is shown, and scoped honestly', async ({ page }) => {
+  // The lab used to compare raw R against raw B and leave the impression that
+  // the public key hides a good basis. At these dimensions it does not, and the
+  // page must say so itself rather than letting a reader infer security.
+  const errors = await open(page);
+  await page.click('#btn-baseline');
+
+  const body = page.locator('#baseline-body');
+  await expect(body).not.toBeEmpty();
+  // An attack that works is an ALARM, never a green pass.
+  await expect(body.locator('[data-verdict]')).toHaveAttribute('data-verdict', 'alarm');
+
+  // The result must come through the REAL decryptor, and be complete.
+  const decrypted = await kv(page, '#baseline-body', 'decrypted, through the real decryptor');
+  const [got, tried] = decrypted.split('/').map((x) => Number(x.trim()));
+  expect(tried).toBeGreaterThan(0);
+  expect(got, 'the reduced public basis decrypts everything at these dimensions').toBe(tried);
+
+  // Its bound must actually beat the threshold -- that is the claim, not a vibe.
+  const bound = Number(await kv(page, '#baseline-body', 'worst-case bound of the reduced basis'));
+  expect(bound).toBeLessThan(0.5);
+  expect(await kv(page, '#baseline-body', 'decryption guaranteed with it?')).toMatch(/yes/i);
+
+  // The ground-truth row must be labelled LAB ONLY: an attacker cannot compute it.
+  const matched = await kv(page, '#baseline-body', 'rows equal to R up to sign and order');
+  expect(matched).toMatch(/\d+ \/ \d+/);
+
+  // And the scope statement must be present and must NOT overclaim in either
+  // direction: it says the raw comparison is about basis quality, and that these
+  // dimensions demonstrate no security.
+  const scope = await page.locator('#baseline-scope').innerText();
+  expect(scope).toMatch(/BASIS QUALITY/i);
+  expect(scope).toMatch(/not a statement about security/i);
+  expect(scope).toMatch(/200 to 400/);
+
+  expect(errors).toEqual([]);
+});
+
+test('baseline: the raw public basis is described as a rate, not a law', async ({ page }) => {
+  await open(page);
+  await page.click('#btn-baseline');
+  const text = await page.locator('#baseline-body').innerText();
+  // Measured: raw B decrypted 2 of 30 at n=8. Saying "never" would be false.
+  expect(text).toMatch(/rate, not a law/i);
+  expect(text, 'the page must not claim raw B never decrypts').not.toMatch(/never decrypts/i);
+});
+
+// ─────────────────────── the HNF public key (audit finding 5) ────────────────
+
+test('HNF: canonicity is demonstrated, not asserted', async ({ page }) => {
+  // The brief and README described HNF as a browser exhibit while the app never
+  // imported the module. It is a real exhibit now, and the headline property --
+  // that the HNF depends only on the lattice -- is COMPUTED both ways and
+  // compared, not quoted from a test.
+  const errors = await open(page);
+  await page.click('#btn-hnf');
+
+  const body = page.locator('#hnf-body');
+  await expect(body).not.toBeEmpty();
+  await expect(body.locator('[data-verdict]')).toHaveAttribute('data-verdict', 'pass');
+
+  expect(await kv(page, '#hnf-body', 'HNF(R) equals HNF(B)?')).toMatch(/identical/i);
+  expect(await kv(page, '#hnf-body', 'in Hermite normal form?')).toMatch(/yes/i);
+  expect(await kv(page, '#hnf-body', 'same lattice, proved in BigInt')).toMatch(/both inclusions exact/i);
+  expect(await kv(page, '#hnf-body', 'product of pivots equals')).toMatch(/exact/i);
+
+  // The size claim must be the MEASURED one, not Micciancio's asymptotic factor
+  // of n, because this lab mixes U gently and does not reproduce that factor.
+  const ratio = Number((await kv(page, '#hnf-body', 'size ratio B : HNF')).replace(/x$/, ''));
+  expect(ratio).toBeGreaterThan(1);
+  const text = await body.innerText();
+  expect(text).toMatch(/asymptotic/i);
+  expect(text, 'the page must not claim the factor-n saving it does not measure').toMatch(
+    /not n\b/,
+  );
+
+  // Determinants past 2^53 must never be shown truncated into a double.
+  expect(Number(await kv(page, '#hnf-body', 'bits in |det R|'))).toBeGreaterThan(53);
+
+  expect(errors).toEqual([]);
+});
+
+// ───────────────────────────── keyboard-only journey ─────────────────────────
+
+/** Tab forward until `id` holds focus, or fail saying what was reachable. */
+async function tabTo(page: Page, id: string, max = 60): Promise<string[]> {
+  const seen: string[] = [];
+  for (let i = 0; i < max; i++) {
+    const active = await page.evaluate(() => {
+      const el = document.activeElement as HTMLElement | null;
+      return el ? el.id || el.tagName.toLowerCase() + (el.className ? '.' + String(el.className).split(' ')[0] : '') : '';
+    });
+    if (active && seen[seen.length - 1] !== active) seen.push(active);
+    if (active === id) return seen;
+    await page.keyboard.press('Tab');
+  }
+  throw new Error(`never reached #${id} by keyboard. Reached: ${seen.join(' -> ')}`);
+}
+
+test('keyboard: the whole core path works with no pointer at all', async ({ page }) => {
+  // Audit finding 11. Every core action must be reachable and operable from the
+  // keyboard alone -- not merely focusable, actually driven to a result.
+  const errors = await open(page);
+  await page.evaluate(() => document.body.focus());
+
+  // The skip link is the first focusable thing and must move focus into #app.
+  await page.keyboard.press('Tab');
+  const first = await page.evaluate(() => document.activeElement?.className ?? '');
+  expect(first, 'the skip link must be the first stop').toContain('cl-skip-link');
+  await page.keyboard.press('Enter');
+  await expect(page.locator('#app')).toBeFocused();
+
+  // Encrypt, by keyboard.
+  await tabTo(page, 'btn-encrypt');
+  await page.keyboard.press('Enter');
+  await expect(page.locator(SELECTORS.i2)).not.toBeEmpty();
+
+  // Decrypt with each basis, by keyboard, and confirm both results persist.
+  await tabTo(page, 'btn-decrypt-private');
+  await page.keyboard.press('Enter');
+  await expect(page.locator('#result-private')).toBeVisible();
+  await tabTo(page, 'btn-decrypt-public');
+  await page.keyboard.press('Enter');
+  await expect(page.locator('#result-public')).toBeVisible();
+  await expect(page.locator('#result-private')).toBeVisible();
+
+  // Break 1, stepped to completion by keyboard.
+  await tabTo(page, 'btn-break1-step');
+  for (let i = 0; i < 12; i++) {
+    if (await page.locator(SELECTORS.break1Step).isDisabled()) break;
+    await page.keyboard.press('Enter');
+  }
+  await expect(page.locator(SELECTORS.verdictBreak1)).toHaveAttribute('data-verdict', 'alarm');
+
+  expect(errors).toEqual([]);
+});
+
+test('keyboard: the error-mode select is operable and retires by keyboard', async ({ page }) => {
+  await open(page);
+  await page.click(SELECTORS.encrypt);
+  await page.click(SELECTORS.decryptPrivate);
+  await expect(page.locator('#result-private')).toBeVisible();
+
+  // Change the select with the keyboard rather than selectOption, so the real
+  // change-event path a keyboard user takes is the one exercised.
+  //
+  // Type-ahead ("u" jumps to the Uniform option) rather than ArrowDown: on macOS
+  // a closed <select> opens its popup on ArrowDown instead of moving the
+  // selection, so an arrow-key assertion passes on Linux CI and fails locally.
+  // Type-ahead behaves the same on every platform.
+  await page.locator(SELECTORS.sigma).focus();
+  await expect(page.locator(SELECTORS.sigma)).toBeFocused();
+  await page.keyboard.press('u');
+  await expect(page.locator(SELECTORS.sigma)).toHaveValue('uniform');
+  await expect(page.locator('#result-private')).toHaveCount(0);
+});
+
+test('every disclosure is operable by keyboard and starts closed', async ({ page }) => {
+  await open(page);
+  const summaries = page.locator('details > summary');
+  const n = await summaries.count();
+  expect(n, 'the page uses progressive disclosure').toBeGreaterThan(0);
+  for (let i = 0; i < n; i++) {
+    await expect(summaries.nth(i).locator('..')).not.toHaveAttribute('open', '');
+  }
+  // Open the first one with the keyboard and confirm it really opened.
+  await summaries.first().focus();
+  await page.keyboard.press('Enter');
+  await expect(summaries.first().locator('..')).toHaveAttribute('open', '');
 });
 
 // ───────────────────────────── structural honesty ────────────────────────────

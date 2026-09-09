@@ -35,8 +35,10 @@ describe('rounding', () => {
   it('rounds half AWAY from zero, which Math.round does not', () => {
     expect(rnd(0.5)).toBe(1);
     expect(rnd(-0.5)).toBe(-1);
-    // The bug this guards: Math.round(-0.5) is -0, which rounds the tie up and
-    // breaks the I2 iff at exact ties.
+    // The bug this guards: Math.round resolves every tie towards +infinity, so
+    // Math.round(-0.5) is -0 rather than -1. Ties are where the I2 criterion
+    // stops being an iff at all (roundoff.test.ts constructs both outcomes), so
+    // the rule that resolves them has to be stated, not inherited.
     expect(Math.round(-0.5)).toBe(-0);
     expect(rnd(2.5)).toBe(3);
     expect(rnd(-2.5)).toBe(-3);
@@ -92,11 +94,37 @@ describe('keygen', () => {
   });
 
   it('the shipped k rule is larger than the 1997 paper rule at every dimension', () => {
-    // The paper's k ~ sqrt(n)*l does not decrypt at these dimensions with
+    // The paper's k = l*ceil(sqrt(n)) does not decrypt at these dimensions with
     // sigma = 3; see the header of keygen.ts for the measured failure rates.
     for (const n of [8, 16, 32, 60]) {
       expect(gghK(n, 4)).toBeGreaterThan(paperK(n, 4));
     }
+  });
+
+  it('paperK is GGH section 5.2 literally: k = l*ceil(sqrt(n)), a ceiling', () => {
+    // The prose cites R = 4*ceil(sqrt(n))*I + rand(+-4). A rounding instead of a
+    // ceiling is a different rule: at l=4 the two agree only where
+    // ceil(sqrt(n)) - sqrt(n) <= 1/8, so they match at n = 16 and 24 and differ
+    // at n = 8, 12, 32 and 60. The helper is pinned to the cited formula here
+    // rather than to a paraphrase of it.
+    for (const n of [8, 12, 16, 24, 32, 60]) {
+      expect(paperK(n, 4)).toBe(4 * Math.ceil(Math.sqrt(n)));
+      expect(paperK(n, 4)).toBe(paperK(n));
+    }
+    expect(paperK(8, 4)).toBe(12);
+    expect(paperK(16, 4)).toBe(16);
+    expect(paperK(32, 4)).toBe(24);
+    // Where they differ, the ceiling is the larger one -- and never by more than
+    // l. Where they agree, they agree exactly, and that is the stated condition.
+    for (const n of [8, 12, 16, 24, 32, 60]) {
+      const rounded = Math.round(Math.sqrt(n) * 4);
+      const agree = Math.ceil(Math.sqrt(n)) - Math.sqrt(n) <= 0.5 / 4;
+      expect(paperK(n, 4) === rounded).toBe(agree);
+      expect(paperK(n, 4)).toBeGreaterThanOrEqual(rounded);
+      expect(paperK(n, 4) - rounded).toBeLessThanOrEqual(4);
+    }
+    // l is a real parameter of the rule, not a constant baked into it.
+    expect(paperK(8, 1)).toBe(3);
   });
 });
 
@@ -141,8 +169,10 @@ describe('invariant I1 - the two bases span the same lattice (claim C1)', () => 
 
 describe('invariant I2 - the decryption bound (claim C2)', () => {
   it('predicts round-off success exactly, with both bases', () => {
-    // The bound is an exact iff, and it is basis-generic: the same criterion
-    // decides for the private and the public basis.
+    // Strictly below 1/2 always succeeds and strictly above always fails, and
+    // the criterion is basis-generic: the same number decides for the private
+    // and the public basis. No draw here lands ON 1/2 -- that boundary case is
+    // tie-dependent and is constructed deliberately in roundoff.test.ts.
     let checked = 0;
     for (const n of [8, 16, 32]) {
       const rng = makeRng(n * 31 + 5);
@@ -230,8 +260,12 @@ describe('invariant I2 - the decryption bound (claim C2)', () => {
 
   it('the paper k rule really does fail to decrypt at n = 8', () => {
     // This is the measurement that justified changing the k rule, so it is
-    // asserted rather than only described in a comment.
+    // asserted rather than only described in a comment. The header quotes 56-57%
+    // over 40 keys x 100 ciphertexts at three seeds; this is the same experiment
+    // at unit-test size, so it is asserted loosely enough that the seed does not
+    // decide the outcome, and tightly enough to bite if the k rule drifts back.
     const n = 8;
+    const trials = 6 * 20;
     const rng = makeRng(2468);
     let fails = 0;
     for (let key = 0; key < 6; key++) {
@@ -243,7 +277,18 @@ describe('invariant I2 - the decryption bound (claim C2)', () => {
         if (!decryptBound(e, Rinv).predictsSuccess) fails++;
       }
     }
-    expect(fails).toBeGreaterThan(0);
+    expect(fails / trials).toBeGreaterThan(0.3);
+    // ...and the shipped rule does not fail at all, on the same experiment.
+    const rng2 = makeRng(2468);
+    for (let key = 0; key < 6; key++) {
+      const k = gghKeygen(n, { rng: rng2 });
+      const Rinv = inverse(k.R);
+      for (let t = 0; t < 20; t++) {
+        const m = randomMessage(n, rng2);
+        const { e } = encrypt(m, k.B, rng2);
+        expect(decryptBound(e, Rinv).predictsSuccess).toBe(true);
+      }
+    }
   });
 });
 

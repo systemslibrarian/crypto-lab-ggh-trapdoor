@@ -180,8 +180,10 @@
           <p class="cl-hero-why-text">
             GGH was a serious proposal, and two papers took it apart without ever solving a
             hard lattice problem &mdash; they attacked the shape of the scheme&rsquo;s own
-            randomness. Falcon samples signatures from a Gaussian and ML-KEM draws its errors
-            from a centered binomial because of exactly these two results.
+            randomness. Falcon samples its signatures from a Gaussian rather than rounding, and
+            its specification says deterministic signing invites exactly this attack. ML-KEM
+            draws its errors from a centered binomial, which leaves Nguyen&rsquo;s
+            mod-2&sigma; observation with nothing to grip.
           </p>
         </aside>
       </div>
@@ -209,6 +211,19 @@
         </p>
       </section>
 
+      <nav class="core-path" aria-label="The three steps of this lab">
+        <p class="core-path-lede">Three steps. Everything else on the page is optional depth.</p>
+        <ol>
+          <li><a href="#act-1">Generate one lattice and compare the two bases</a></li>
+          <li><a href="#act-2">Encrypt once, then decrypt with each basis</a></li>
+          <li><a href="#act-3">Break the error&rsquo;s regularity &mdash; then take it away</a></li>
+        </ol>
+        <p class="core-path-lede" style="margin-top:.6rem;font-weight:400;">
+          Then read the <a href="#act-2b">baseline</a>: at these dimensions ordinary lattice
+          reduction already breaks the public key, which is why GGH was proposed at 200&ndash;400.
+        </p>
+      </nav>
+
       <section class="controls" aria-labelledby="controls-h">
         <h2 id="controls-h">Parameters</h2>
         <div class="control-grid">
@@ -217,17 +232,6 @@
             <input id="dim-slider" type="range" min="8" max="60" step="1" value="16" />
             <p class="control-hint">
               Every matrix on this page is this size. Break 2 needs at least 8 to be legible.
-            </p>
-          </div>
-          <div class="control">
-            <label for="sigma-select">Error vector</label>
-            <select id="sigma-select">
-              <option value="pm3" selected>Every entry &plusmn;3 (GGH's choice)</option>
-              <option value="one-bad">All &plusmn;3 except one coordinate</option>
-              <option value="uniform">Uniform in {&minus;3 &hellip; 3}</option>
-            </select>
-            <p class="control-hint">
-              This is the toggle that decides whether Break 1 works at all.
             </p>
           </div>
           <div class="control">
@@ -262,13 +266,27 @@
             </div>
           </div>
           <div class="panel">
+            <h3>The public basis, two ways</h3>
+            <p class="panel-hint">
+              <code>B = U&middot;R</code> is one of infinitely many bases of this lattice, and it
+              carries traces of how it was built. Micciancio's fix is to publish the
+              <em>canonical</em> one instead: every lattice has exactly one basis in Hermite
+              normal form, so it cannot leak anything about the private basis it came from.
+            </p>
+            <div class="act-actions">
+              <button id="btn-hnf" type="button" class="btn">Compute HNF(R) and HNF(B)</button>
+            </div>
+            <div id="hnf-body"></div>
+          </div>
+          <div class="panel">
             <h3>Both bases, projected to two dimensions</h3>
             <p class="panel-hint" id="basis-plot-hint">
-              The same lattice points drawn twice. Warm is the private basis, neutral is the
-              public one; each arrow is one basis vector, to scale.
+              Real points of the lattice, with both bases drawn over them at one shared scale.
+              Warm is the private basis, neutral the public one; each arrow is one basis vector.
             </p>
-            <canvas id="basis-canvas" width="720" height="360" aria-describedby="basis-plot-hint"
-              role="img" aria-label="Two-dimensional projection of the private and public bases over the same lattice points"></canvas>
+            <canvas id="basis-canvas" class="plot" aria-describedby="basis-plot-hint basis-legend"
+              role="img" aria-label="Sampled points of the lattice with the private and public basis vectors drawn over them, projected to two dimensions"></canvas>
+            <div id="basis-legend"></div>
           </div>
         </section>
 
@@ -279,6 +297,21 @@
             <code>round(c&middot;R<sup>&minus;1</sup>)&middot;R</code>. The same three lines run
             with either basis. One number decides whether they work.
           </p>
+          <!-- The error distribution belongs to GGH ENCRYPTION, so it lives with the
+               encryption experiment rather than in the global parameter bar. Act 4
+               attacks a signature scheme with a different key and never reads it. -->
+          <div class="control control-inline">
+            <label for="sigma-select">Error vector <code>e</code></label>
+            <select id="sigma-select">
+              <option value="pm3" selected>Every entry &plusmn;3 (GGH's choice)</option>
+              <option value="one-bad">All &plusmn;3 except one coordinate</option>
+              <option value="uniform">Uniform in {&minus;3 &hellip; 3}</option>
+            </select>
+            <p class="control-hint">
+              This is the toggle that decides whether Break 1 works at all. Changing it
+              re-runs Acts 2 and 3; it does not touch Act 4.
+            </p>
+          </div>
           <div class="act-actions">
             <button id="btn-encrypt" type="button" class="btn">Encrypt a message</button>
             <button id="btn-decrypt-private" type="button" class="btn">Decrypt with R (private)</button>
@@ -287,6 +320,11 @@
           <div class="panel">
             <h3>Ciphertext</h3>
             <div id="ciphertext-strip" class="strip" tabindex="0" role="region" aria-label="Ciphertext coordinates with the error vector highlighted"></div>
+            <!-- ONE caption element, replaced in place. It used to be appended to the
+                 panel on every encryption, which left several contradictory captions
+                 stacked up: two saying every entry was +-3 and a third saying they
+                 were not. -->
+            <p class="panel-hint" id="ciphertext-caption"></p>
           </div>
           <div class="panel-grid">
             <div class="panel">
@@ -294,10 +332,31 @@
               <div id="i2-bound" role="status" aria-live="polite"></div>
             </div>
             <div class="panel">
-              <h3>Result</h3>
+              <h3>Result: the same algorithm, twice</h3>
               <p class="panel-hint" id="decrypt-note">Encrypt a message, then decrypt it with each basis.</p>
+              <!-- Both decryptions persist side by side. They used to write to one
+                   container, so running the intended private-then-public sequence
+                   replaced DECRYPTED with WRONG MESSAGE and destroyed the very
+                   comparison this act exists to make. data-verdict still reflects the
+                   most recent decryption, so it remains a single machine-readable
+                   outcome. -->
               <div id="verdict-decrypt" role="status" aria-live="polite"></div>
             </div>
+          </div>
+        </section>
+
+        <section id="act-2b" class="act" aria-labelledby="act-2b-h">
+          <h2 id="act-2b-h"><span class="act-num">Baseline</span> What ordinary reduction already does</h2>
+          <p class="act-lede">
+            Before either historical attack, the honest baseline: hand LLL nothing but the
+            <em>public</em> basis and see what it gives back. At these dimensions the answer is
+            uncomfortable, and the lab would be overclaiming if it did not show you.
+          </p>
+          <div class="act-actions">
+            <button id="btn-baseline" type="button" class="btn btn-primary">Run LLL on the public basis</button>
+          </div>
+          <div class="panel">
+            <div id="baseline-body"></div>
           </div>
         </section>
 
@@ -341,17 +400,26 @@
               Each dot is one signature&rsquo;s offset <code>s &minus; h</code>, projected to two
               dimensions. Round-off signing fills the actual parallelepiped, corners and all.
             </p>
-            <canvas id="break2-canvas" width="720" height="360" aria-describedby="cloud-hint"
-              role="img" aria-label="Projection of signature offsets, showing the fundamental parallelepiped of the secret basis"></canvas>
+            <canvas id="break2-canvas" class="plot" aria-describedby="cloud-hint break2-legend"
+              role="img" aria-label="Projection of signature offsets. Run the attack to fill it."></canvas>
+            <div id="break2-legend"></div>
           </div>
           <div class="panel-grid">
             <div class="panel">
               <h3>Signatures consumed</h3>
-              <div id="sig-counter" role="status" aria-live="polite"></div>
+              <!-- The numeric readout refreshes every tick and is NOT a live region:
+                   announcing ~30 updates a second would make the page unusable with a
+                   screen reader. The throttled milestone line below is the live one. -->
+              <div id="sig-counter"></div>
+              <p class="panel-hint" id="break2-status" role="status" aria-live="polite"></p>
             </div>
             <div class="panel">
               <h3>Result</h3>
               <p class="panel-hint" id="break2-note"></p>
+              <!-- Two independent checks. Forging proves the candidate is a good basis
+                   of this lattice; only the lab, holding the secret, can say whether it
+                   is the secret one. They are never collapsed into one verdict. -->
+              <div id="break2-checks"></div>
               <div id="verdict-break2" role="status" aria-live="polite"></div>
             </div>
           </div>

@@ -44,10 +44,12 @@ export function cloneMat(A: Mat): Mat {
 /**
  * Round half away from zero.
  *
- * NOT `Math.round`: `Math.round(-0.5)` is `-0`, which rounds the exact tie the
- * wrong way and breaks the I2 iff at ties. Measured: with `Math.round` the
- * decryption bound stops being an exact iff; with this, 0 mismatches in 5,600
- * ciphertexts.
+ * NOT `Math.round`, which resolves every tie towards +infinity (`Math.round(-0.5)`
+ * is `-0`). That would decide the x = -1/2 tie without reference to the sign of
+ * the coordinate. Neither rule makes the decryption bound an if-and-only-if at
+ * the boundary -- see roundoff.ts, where both tie outcomes are constructed --
+ * but this one at least makes the tie symmetric in the sign of the error, and it
+ * is the rule roundoff.ts documents.
  */
 export function rnd(x: number): number {
   const r = x >= 0 ? Math.floor(x + 0.5) : -Math.floor(-x + 0.5);
