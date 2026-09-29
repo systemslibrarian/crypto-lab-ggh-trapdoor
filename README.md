@@ -179,7 +179,7 @@ then run it again against Gaussian signatures.
 ## Real-World Usage
 
 GGH itself is dead, and its two breaks are why several live standards look the way they do.
-**Falcon** (FIPS 206 draft) signs by sampling a spherical discrete Gaussian over the shifted
+**Falcon** (FIPS 206, in development)[^fips206] signs by sampling a spherical discrete Gaussian over the shifted
 lattice rather than rounding, using the Ducas–Prest fast-Fourier sampler in the GPV framework;
 its specification states that setting the sampler width to zero — signing deterministically —
 "opens the door to learning attacks" of exactly the Nguyen–Regev kind. **ML-KEM** (FIPS 203)
@@ -188,6 +188,8 @@ draws every secret and error coefficient from a centered binomial distribution w
 mod-2σ observation has no analogue. **NTRUSign** shipped the same round-off signature shape as
 GGH and fell to the same descent, at 400 signatures without perturbation. **Micciancio's HNF
 public key** is the standard fix for GGH-style key size and is implemented here.
+
+[^fips206]: Not a draft — none has been published. NIST's [PQC standardization project](https://csrc.nist.gov/projects/post-quantum-cryptography/post-quantum-cryptography-standardization) lists FN-DSA as "FIPS 206 (in development)", and FIPS 206 does not appear in the [CSRC FIPS publications list](https://csrc.nist.gov/publications/fips) at all, which holds FIPS 203, 204 and 205 as final (2024-08-13). FN-DSA is a selected-and-named algorithm rather than a published standard. Verified against CSRC 2026-09-29.
 
 ## How to Run Locally
 
