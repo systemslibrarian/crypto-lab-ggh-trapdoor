@@ -16,3 +16,4 @@ Thumbs.db
 
 # Local, gitignored working copy of the catalog master template (audits/kickoff.md)
 CRYPTO-LAB-TEMPLATE*.md
+chat.md
