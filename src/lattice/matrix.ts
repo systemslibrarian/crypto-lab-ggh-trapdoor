@@ -11,7 +11,7 @@
  * round-off, or the I1 proof was measured at 3.4e4 against 9.007e15, a margin of
  * 2.7e11 (38 spare bits) at n=60. It is NOT safe for one specific algorithm:
  * fraction-free (Bareiss) LLL carries leading principal minors of the Gram
- * matrix, whose final value is det(B)^2 -- 10^16.3 at n=8 and 10^177.8 at n=60,
+ * matrix, whose final value is det(B)^2 -- 10^25.4 at n=8 and 10^227 at n=60,
  * i.e. already past 2^53 at the SMALLEST dimension this lab offers. That is why
  * `lll.ts` uses floating-point Gram-Schmidt with exact integer basis updates and
  * a runtime guard, rather than the fraction-free variant.
@@ -210,7 +210,7 @@ export function inverse(A: Mat): Mat {
  * spanned by the first j+1 rows of A, so these are the numbers the orthogonality
  * defect is built from.
  *
- * Returned as log10 on purpose. det(B) reaches 10^89.7 at n=60 and the
+ * Returned as log10 on purpose. det(B) reaches 10^113.5 at n=60 and the
  * orthogonality defect of the PUBLIC basis reaches 10^69.2 -- both far past
  * 2^53, so neither may ever be formed in linear arithmetic. `Math.pow` would
  * happily return a finite double for these and it would not be an integer any
@@ -261,7 +261,7 @@ export function log10OrthogonalityDefect(A: Mat): number {
   return logRowNorms - logDet;
 }
 
-/** log10|det A|, via the same QR. Never form the linear value: it reaches 10^89.7 at n=60. */
+/** log10|det A|, via the same QR. Never form the linear value: it reaches 10^113.5 at n=60. */
 export function log10AbsDet(A: Mat): number {
   let s = 0;
   for (const p of log10PivotNorms(A)) s += p;

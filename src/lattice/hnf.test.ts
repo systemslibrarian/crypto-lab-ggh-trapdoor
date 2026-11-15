@@ -266,7 +266,10 @@ describe('the HNF diagonal multiplies to |det R|', () => {
     // n=60 at the shipped keygen: |det| is around 10^113.5, which is 97.6 orders of
     // magnitude past 2^53. If this ever fits in a double, the parameters changed.
     const { d } = hnf(key(60, 60).B);
-    expect(d.toString().length).toBeGreaterThan(100);
+    // 114 decimal digits at the shipped k = ceil(2*l*sqrt(n)) + 4l. GGH's own
+    // k would give 91, so the band is also what distinguishes the two rules.
+    expect(d.toString().length).toBeGreaterThan(110);
+    expect(d.toString().length).toBeLessThan(118);
     expect(d > BigInt(Number.MAX_SAFE_INTEGER)).toBe(true);
   });
 });

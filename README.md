@@ -69,7 +69,7 @@ rule *does not decrypt*: with `σ = 3` the legitimate key owner fails to recover
 **56–57% of the time at n=8** and 2.7–3.3% at n=32, because invariant I2 is violated. That is not a bug in GGH — the paper *derives* σ from the basis and it only lands
 near 3 at the paper's own dimensions of 200–400, while the published challenges fixed σ = 3
 exactly. Since `2σ = 6` is the modulus Break 1 runs in, σ is held at 3 and `k` is raised to
-`ceil(2·l·√n) + 4l`, which gives a worst-case I2 bound of **0.121–0.136, flat from n=8 to
+`ceil(2·l·√n) + 4l`, which gives a worst-case I2 bound of **0.118–0.128, flat from n=8 to
 n=60** — a guarantee rather than luck. Act 4 keys separately with GGH's *own* `k`, because it
 attacks a signature scheme where I2 does not apply and the larger `k` costs ~16× more
 signatures. Both choices are stated on the page.
@@ -79,7 +79,7 @@ signatures. Both choices are stated on the page.
 1. **Two bases, one lattice.** Generates the private basis `R = k·I + E` and the public
    `B = U·R`. Proves `L(B) = L(R)` by recovering integer `U` and `V` from `R` and `B` alone and
    checking `U·R = B`, `V·B = R` and `U·V = I` exactly — no determinant is ever formed, because
-   `det B` reaches 10^89 here. Reports the orthogonality defect of each basis (as log10; the
+   `det B` reaches 10^113 here. Reports the orthogonality defect of each basis (as log10; the
    public basis defect passes 2^53 in linear form from n=16 up) and plots both bases at one
    shared scale.
 2. **Encrypt, then decrypt twice.** `c = m·B + e`. The same Babai round-off runs with each
@@ -282,8 +282,8 @@ Everything below was measured through this implementation, not estimated.
 | Quantity | Measured |
 |---|---|
 | I1 largest intermediate value at n=60 | 3.4e4 against 2^53 — margin 2.7e11 |
-| I2 worst case, private basis, n=8→60 | 0.121–0.136 (guarantee, margin ≥3.6×) |
-| I2 actual, public basis | 7.3–15.3 — 12–30× over the ½ threshold |
+| I2 worst case, private basis, n=8→60 | 0.118–0.128 (guarantee, margin ≥3.9×) |
+| I2 actual, public basis | median 1.3–5.2 — 2.7–10× over the ½ threshold; worst observed 12.7 |
 | Keys invertible mod 6 | 12.0–17.0% |
 | Break 1, whole attack at n=60 | 4.6 ms median (LLL 2.9 ms) |
 | Break 1 shortest reduced row, honest | exactly √(n+1); tampered 3–4× larger, zero overlap in 1120 trials |
@@ -294,11 +294,12 @@ Everything below was measured through this implementation, not estimated.
 
 **The plan said this could be BigInt-free. It cannot.** Fraction-free (Bareiss) LLL carries
 the leading principal minors of the Gram matrix, whose final value is `det(B)²` — that is
-10^16.3 at **n=8**, the smallest dimension offered, and 10^177.8 at n=60 (10^213.9 for Break 1's
-embedding lattice). `det(B)²` is a lattice invariant, so no reduction makes it smaller. LLL
-here therefore uses floating-point Gram–Schmidt with exact integer basis updates and a runtime
-`Number.isSafeInteger` guard, and BigInt is confined to the HNF path. Everything else is
-Number-safe with the margins above.
+10^25.4 at **n=8**, the smallest dimension offered, and 10^227 at n=60. Break 1's centered
+embedding doubles `B`, so its own largest pivot is another 2^2n up again: 2^875, or 10^263, at
+n=60, measured per dimension in `src/attack/lll.ts`. `det(B)²` is a lattice invariant, so no
+reduction makes it smaller. LLL here therefore uses floating-point Gram–Schmidt with exact
+integer basis updates and a runtime `Number.isSafeInteger` guard, and BigInt is confined to
+the HNF path. Everything else is Number-safe with the margins above.
 
 ## Performance
 

@@ -25,9 +25,9 @@
  * 2 of 8 at n = 10, and for none from n = 11 up. The lab's slider starts at 8,
  * so BigInt is required across almost the whole of its own range.
  *
- * (Under GGH's own k = round(sqrt(n)*l) the determinant is 10^89.2 at n=60
- * instead of 10^113.5 -- still 73 orders past 2^53. The k rule changes the
- * number; it does not change the verdict.)
+ * (Under GGH's own k = l*ceil(sqrt(n)) -- `paperK`, which the signature acts use
+ * -- the determinant is 10^90.1 at n=60 instead of 10^113.5, still 74 orders past
+ * 2^53. The k rule changes the number; it does not change the verdict.)
  *
  * A double would not throw here. It would return a finite, wrong, non-integer
  * value and every downstream check would quietly become a lie. So this file is

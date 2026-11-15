@@ -204,9 +204,10 @@ describe('invariant I2 - the decryption bound (claim C2)', () => {
     for (const n of [8, 16, 24, 32, 40, 50, 60]) {
       const key = gghKeygen(n, { rng: makeRng(n) });
       const worst = worstCaseBound(inverse(key.R), SIGMA);
-      // Measured 0.121-0.136 across this range: a margin of at least 3.6x.
+      // Measured 0.116-0.128 across this range: a margin of at least 3.89x.
       expect(worst).toBeLessThan(0.5);
-      expect(0.5 / worst).toBeGreaterThan(3.5);
+      expect(worst).toBeLessThan(0.13);
+      expect(0.5 / worst).toBeGreaterThan(3.8);
     }
   });
 
@@ -215,8 +216,8 @@ describe('invariant I2 - the decryption bound (claim C2)', () => {
     // defensive: the bound is a property of the error vector, so an unusually
     // short e can occasionally slip under 1/2 even with the public basis. That
     // was measured once in 200 ciphertexts at n=8. What the trapdoor buys is
-    // that the quantity is 12-30x over the threshold with B and ~0.1 with R --
-    // a guarantee versus a coin that almost always lands the same way.
+    // that the quantity is a median 2.7-10x over the threshold with B and ~0.1
+    // with R -- a guarantee versus a coin that almost always lands the same way.
     for (const n of [8, 16, 32]) {
       const rng = makeRng(n + 77);
       const key = gghKeygen(n, { rng });
@@ -238,6 +239,11 @@ describe('invariant I2 - the decryption bound (claim C2)', () => {
       // The public basis is worse by an order of magnitude on average, and it
       // carries no guarantee at all.
       expect(sumB / trials).toBeGreaterThan(10 * (sumR / trials));
+      // And it is over the threshold by single-digit multiples, not by 12-30x:
+      // mean 1.3-2.1 here, median 1.3-5.2 over 40 ciphertexts per dimension in
+      // evidence/baseline.json, worst single observation 12.7.
+      expect(sumB / trials).toBeGreaterThan(1);
+      expect(sumB / trials).toBeLessThan(3);
       expect(worstCaseBound(Binv, SIGMA)).toBeGreaterThan(0.5);
     }
   });

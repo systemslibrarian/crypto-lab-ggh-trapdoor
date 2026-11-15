@@ -2,7 +2,7 @@
  * Invariant I1 -- the two bases provably span the same lattice.
  *
  * The obvious formulation is "B*R^-1 is unimodular: integer, det +-1". We do not
- * compute that determinant, because det(B) reaches 10^89.7 at n=60 and there is
+ * compute that determinant, because det(B) reaches 10^113.5 at n=60 and there is
  * no honest way to form it in doubles. Instead we prove the same thing with
  * integer matrix multiplication only:
  *

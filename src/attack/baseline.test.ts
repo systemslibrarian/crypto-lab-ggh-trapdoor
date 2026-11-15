@@ -127,7 +127,7 @@ describe('the reduced basis is a basis of the same lattice', () => {
         expect(matEq(matmul(r.transform, key.B), r.reducedBasis)).toBe(true);
 
         // And the full I1 proof, in both orientations. Reusing the production
-        // prover rather than a determinant: det(B) is 10^89.7 at n=60.
+        // prover rather than a determinant: det(B) is 10^113.5 at n=60.
         expect(proveSameLattice(key.B, r.reducedBasis).ok).toBe(true);
         expect(proveSameLattice(key.R, r.reducedBasis).ok).toBe(true);
       }

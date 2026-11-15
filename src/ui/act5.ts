@@ -57,9 +57,11 @@ const CARDS: Card[] = [
         'framework, Peikert 2010 gave a randomised round-off, and Ducas&ndash;Prest 2016 ' +
         'supplied the sampler Falcon actually uses.',
       'The output is a <em>spherical</em> Gaussian over the shifted lattice, with width ' +
-        '<code>&sigma; &le; 1.312&middot;||B||<sub>GS</sub></code>. A sphere has no corners, so ' +
-        'there is no parallelepiped to learn &mdash; run Act 4 with Gaussian signatures and ' +
-        'watch the fourth moment sit flat at <code>1/48</code>.',
+        '<code>&sigma; = &eta;<sub>&epsilon;</sub>(Z<sup>2n</sup>)&middot;||B||<sub>GS</sub></code> &mdash; the ' +
+        'specification sets the width from the Gram&ndash;Schmidt norm and, in its equation 2.13, ' +
+        'requires at least that much, because a width that is too small is exactly what leaks the ' +
+        'basis. A sphere has no corners, so there is no parallelepiped to learn &mdash; run Act 4 ' +
+        'with Gaussian signatures and watch the fourth moment sit flat at <code>1/48</code>.',
       'Falcon&rsquo;s specification is explicit that this is not incidental: for every known ' +
         'sampler, setting the width to zero &mdash; that is, signing deterministically &mdash; ' +
         '"opens the door to learning attacks" of exactly this kind.',

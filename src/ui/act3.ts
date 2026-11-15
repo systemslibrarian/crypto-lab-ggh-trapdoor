@@ -8,7 +8,7 @@
  * guessed. The obvious story -- "with a non-congruent error the division by 6
  * comes out fractional" -- is FALSE and was measured false 1120 times out of
  * 1120: m0 is by construction the exact solution of the congruence, so
- * c + s - m0*B is identically zero mod 6 and the division always succeeds. A UI
+ * c - s - m0*B is identically zero mod 6 and the division always succeeds. A UI
  * built on that story would show nothing, ever. What actually separates a
  * working attack from a broken one, with zero overlap in 1120 trials, is the
  * shortest reduced row norm against its expected value sqrt(n+1), the {+1,-1}
@@ -46,7 +46,7 @@ function stepDetail(step: Break1Step, n: number): string {
         : `B is singular mod ${step.singular?.modulus ?? 6}. This key cannot be attacked this way; generate another.`;
     case 'divide':
       return step.ok
-        ? `(c + s - m0*B) / 6 came out an exact integer vector, as it always must. The residual error is now in {0,-1}^n instead of {+-3}^n.`
+        ? `(c - s - m0*B) / 6 came out an exact integer vector, as it always must. The residual error is now in {0,-1}^n instead of {+-3}^n.`
         : `Division was not exact at coordinate ${step.firstInexactIndex}.`;
     case 'embed':
       return (

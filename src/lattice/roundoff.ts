@@ -129,8 +129,9 @@ export function decrypt(c: Vec, key: GghKey, Rinv: Mat, Binv: Mat): Vec {
  * in 5,600 draws" is what that measurement shows, not that ties cannot occur.
  *
  * The criterion is basis-generic -- the same one number for the private and the
- * public basis, and the trapdoor is the only thing that makes it small: ~0.29-0.69
- * with the private basis versus 7.3-15.3 with the public one.
+ * public basis, and the trapdoor is the only thing that makes it small: about
+ * 0.05-0.12 with the private basis versus a median of 1.3-5.2, worst observed 12.7,
+ * with the public one (evidence/baseline.json, 40 ciphertexts at each dimension).
  */
 export function decryptBound(e: Vec, basisInv: Mat, sigma: number = SIGMA): DecryptBound {
   const actual = maxAbsVec(vecMat(e, basisInv));

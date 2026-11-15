@@ -867,7 +867,7 @@ function sectionHnf(m) {
       proofMs: r3(proof.ms),
       proofOk: proof.ok,
       detBits: bitsOfInt(res.d),
-      // Decimal digits, not log10: |det| is 10^89.7 at n=60 and must never be
+      // Decimal digits, not log10: |det| is 10^113.5 at n=60 and must never be
       // formed as a double, so the digit count is read off the BigInt itself.
       detDecimalDigits: res.d.toString().length,
       nontrivialPivots: size.nontrivialPivots,

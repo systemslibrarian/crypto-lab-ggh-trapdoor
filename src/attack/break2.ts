@@ -244,8 +244,9 @@ export function matchUpToSignPerm(cands: Mat, R: Mat): MatchResult {
       }
     }
   }
-  // log10 rather than the determinants themselves: |det R| is 10^16.3 at n=8 and
-  // far past 2^53 higher up, so the ratio must be formed in the exponent.
+  // log10 rather than the determinants themselves: under the paper's k rule that
+  // Break 2 keys with, |det R| is 10^8.5 at n=8 and 10^19 at n=16 -- already past
+  // 2^53 one dimension up -- so the ratio must be formed in the exponent.
   let absDetRatio = NaN;
   if (cands.length >= n) {
     absDetRatio = Math.pow(10, log10AbsDet(cands.slice(0, n)) - log10AbsDet(R));

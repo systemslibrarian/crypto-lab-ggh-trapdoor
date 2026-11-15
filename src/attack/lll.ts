@@ -10,8 +10,8 @@
  * Those pivots are enormous. Two independent measurements on this lab's own
  * matrices:
  *
- *   - On the public basis B the final pivot is det(B)^2, measured at 10^16.3 at
- *     n=8 and 10^177.8 at n=60. 2^53 is 9.0e15, so the very smallest dimension
+ *   - On the public basis B the final pivot is det(B)^2, measured at 10^25.4 at
+ *     n=8 and 10^227 at n=60. 2^53 is 9.0e15, so the very smallest dimension
  *     this lab offers already overflows.
  *   - Measured directly on the real centered embedding bases this file is asked
  *     to reduce (one per dimension, this lab's keygen, messages in [-128,127]):
