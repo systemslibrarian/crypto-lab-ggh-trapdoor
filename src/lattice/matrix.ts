@@ -6,10 +6,20 @@
  * teaching path.
  *
  * OVERFLOW POLICY. All lattice bases in this lab hold exact integers stored in
- * doubles, which is exact for |x| <= 2^53. That is safe by an enormous margin at
- * the shipped parameters -- the largest intermediate value anywhere in keygen,
- * round-off, or the I1 proof was measured at 3.4e4 against 9.007e15, a margin of
- * 2.7e11 (38 spare bits) at n=60. It is NOT safe for one specific algorithm:
+ * doubles, which is exact for |x| <= 2^53. How close the shipped parameters come
+ * to that ceiling is measured rather than asserted: the largest intermediate
+ * value reached inside the I1 proof -- the only path instrumented, through the
+ * `MulStats` hook on `matmul` below -- was 8.4e4 against 9.007e15 at n=60, a
+ * margin of 1.1e11 (36.6 spare bits).
+ *
+ * THAT FIGURE IS A SAMPLE MAXIMUM, NOT A BOUND. It is the largest value seen
+ * over 120 keys per dimension (seeds 1000*n + 0..119), recorded with its seeds
+ * and procedure in `evidence/baseline.json` under `i1.measurement` and
+ * reproducible with `npm run evidence`. A larger sample can exceed it, and one
+ * did: a 3-key sample of the same harness reported 1.6e4 at n=60. What keeps
+ * this safe is therefore not the figure but the runtime `Number.isSafeInteger`
+ * check the proof itself performs (`checks.entriesSafe`), which fails loudly on
+ * any key that does cross 2^53. It is NOT safe for one specific algorithm:
  * fraction-free (Bareiss) LLL carries leading principal minors of the Gram
  * matrix, whose final value is det(B)^2 -- 10^25.4 at n=8 and 10^227 at n=60,
  * i.e. already past 2^53 at the SMALLEST dimension this lab offers. That is why

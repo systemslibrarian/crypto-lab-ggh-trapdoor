@@ -3,10 +3,12 @@
  *
  * WHY THIS FILE IS THE ONE THAT USES BigInt.
  *
- * Everywhere else in this lab, exact integers live in doubles and there is an
- * enormous margin: the largest intermediate value anywhere in keygen, round-off
- * or the I1 proof was measured at 3.4e4 against 2^53 = 9.007e15. The HNF is not
- * like that, and it cannot be made like that, because of one identity:
+ * Everywhere else in this lab, exact integers live in doubles with a wide
+ * measured margin: the largest intermediate value reached inside the I1 proof
+ * was 8.4e4 against 2^53 = 9.007e15 at n=60 -- the maximum over 120 keys per
+ * dimension, not a bound over all keys, with its seeds in
+ * `evidence/baseline.json` (`i1.measurement`). The HNF is not like that, and it
+ * cannot be made like that, because of one identity:
  *
  *     prod_i H[i][i] = |det R|
  *

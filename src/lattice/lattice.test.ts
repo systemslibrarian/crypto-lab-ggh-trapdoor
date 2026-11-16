@@ -6,6 +6,7 @@
  * page-level versions live in e2e/claims.spec.ts.
  */
 
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { gghK, gghKeygen, invertibleMod6, invertibleModP, paperK, SIGMA } from './keygen';
 import { proveSameLattice } from './invariants';
@@ -151,9 +152,74 @@ describe('invariant I1 - the two bases span the same lattice (claim C1)', () => 
     const key = gghKeygen(60, { rng: makeRng(42) });
     const proof = proveSameLattice(key.R, key.B, { stats });
     expect(proof.ok).toBe(true);
-    // Measured worst case at n=60 is ~3.4e4 against 9.007e15.
+    // The sample maximum at n=60 is 8.4e4 against 9.007e15 over 120 keys
+    // (evidence/baseline.json, i1) -- an observed maximum, not a bound, so this
+    // asserts generous headroom rather than the figure itself. The figure and
+    // its N are pinned against the evidence file further down.
     expect(stats.maxIntermediate).toBeLessThan(1e8);
     expect(Number.MAX_SAFE_INTEGER / stats.maxIntermediate).toBeGreaterThan(1e7);
+  });
+
+  it('pins the published largest-intermediate figure to the evidence file, WITH its N', () => {
+    // WHY THIS TEST EXISTS. The README carried "3.4e4 against 2^53" for this
+    // quantity with no sample size beside it, and the figure matched no run of
+    // `scripts/evidence.mjs`: the 3-key sample it was attributed to produces
+    // 15762 at n=60, and raising the sample to 120 keys produces 84490. A
+    // maximum a larger sample exceeds is not a bound, so the figure may only be
+    // published together with the N it was taken over -- and both halves are
+    // asserted here against the generated artifact, in the README row and in
+    // the artifact itself. Remove either and this fails.
+    const root = new URL('../../', import.meta.url);
+    const ev = JSON.parse(readFileSync(new URL('evidence/baseline.json', root), 'utf8')) as {
+      provenance: { seedCorpus: { i1: { keySeedBase: number; keys: number } } };
+      i1: {
+        measurement: {
+          keysPerDimension: number;
+          isObservedMaximum: boolean;
+          isUpperBound: boolean;
+          procedure: string;
+          globalMaxIntermediate: number;
+          globalMaxAtN: number;
+        };
+        byDimension: {
+          n: number;
+          keys: number;
+          maxIntermediate: number;
+          maxIntermediateSeed: number;
+        }[];
+      };
+    };
+
+    // The sample size, the seed family and the procedure travel with the figure.
+    expect(ev.provenance.seedCorpus.i1).toEqual({ keySeedBase: 1000, keys: 120 });
+    expect(ev.i1.measurement.keysPerDimension).toBe(120);
+    expect(ev.i1.measurement.isObservedMaximum).toBe(true);
+    expect(ev.i1.measurement.isUpperBound).toBe(false);
+    expect(ev.i1.measurement.procedure).toMatch(/makeRng\(1000 \* n \+ s\)/);
+
+    const n60 = ev.i1.byDimension.find((d) => d.n === 60);
+    expect(n60, 'the artifact must carry an n=60 row').toBeDefined();
+    expect(n60!.keys).toBe(120);
+    expect(n60!.maxIntermediate).toBe(84490);
+    expect(n60!.maxIntermediateSeed).toBe(60074);
+    // n=60 is also where the global maximum lands, so the README's "at n=60"
+    // is not quietly hiding a larger value at another dimension.
+    expect(ev.i1.measurement.globalMaxIntermediate).toBe(84490);
+    expect(ev.i1.measurement.globalMaxAtN).toBe(60);
+
+    // The README row must quote that same figure, its N and where it came from.
+    const readme = readFileSync(new URL('README.md', root), 'utf8');
+    const row = readme
+      .split('\n')
+      .find((l) => l.startsWith('| I1 largest intermediate value'));
+    expect(row, 'the README must still carry the I1 row').toBeDefined();
+    // 8.4e4 has to BE the measured value to one decimal, not an independent number.
+    expect(Number(n60!.maxIntermediate.toExponential(1))).toBe(8.4e4);
+    expect(row!).toContain('8.4e4');
+    expect(row!).toContain('N=120');
+    expect(row!).toContain('evidence/baseline.json');
+    // ...and it must not present it as a bound.
+    expect(row!).not.toMatch(/at most|never exceeds|bounded by|guaranteed/i);
   });
 
   it('reports a failure rather than throwing when the claim is false', () => {

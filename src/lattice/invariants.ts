@@ -19,9 +19,14 @@
  * inclusion and together they are the lattice equality itself, which is the
  * property I1 actually wants -- strictly more informative than the determinant.
  *
- * Measured: PASS at n = 8, 16, 32, 60 across 5 keys each on two independent
- * seeds. Largest intermediate value anywhere in the proof was 3.4e4 against
- * 2^53 = 9.0e15, a margin of 2.7e11.
+ * Measured: PASS at n = 8, 16, 32, 60 across 120 keys per dimension, drawn from
+ * `makeRng(1000 * n + s)` for s = 0..119. The largest intermediate value any of
+ * those 480 proofs reached was 8.4e4 (84490 exactly) against 2^53 = 9.0e15, a
+ * margin of 1.1e11 -- at n = 60, under key seed 60074. That is the MAXIMUM OVER
+ * THAT SAMPLE and not a bound on all keys: an earlier 3-key sample of the same
+ * harness reported 1.6e4, which a larger sample then exceeded. The seeds, the
+ * instrument and the full procedure are recorded in `evidence/baseline.json`
+ * under `i1.measurement`, and `npm run evidence` reproduces every value.
  *
  * One honest caveat, measured rather than assumed: the first thing to break if
  * anyone raises `opsPerRow` is not integer overflow but the conditioning of

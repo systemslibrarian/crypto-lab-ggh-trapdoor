@@ -61,7 +61,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
  * that would be a bug in this script.
  */
 const SEEDS = {
-  i1: { keySeedBase: 1000, keys: 3 },
+  i1: { keySeedBase: 1000, keys: 120 },
   i2: { keySeedBase: 7000, ciphertextSeedBase: 7500, ciphertexts: 40 },
   keygen: { seedBase: 20000 },
   baseline: { keySeedBase: 31000, ciphertextSeedBase: 31500, ciphertexts: 25 },
@@ -250,21 +250,32 @@ function sectionI1(m) {
   const byDimension = DIMS.map((n) => {
     let allPass = true;
     let maxIntermediate = 0;
+    let argmaxSeed = null;
     const msList = [];
     for (let s = 0; s < SEEDS.i1.keys; s++) {
-      const key = gghKeygen(n, { rng: makeRng(SEEDS.i1.keySeedBase * n + s) });
+      const seed = SEEDS.i1.keySeedBase * n + s;
+      const key = gghKeygen(n, { rng: makeRng(seed) });
       const stats = { maxIntermediate: 0 };
       const t0 = performance.now();
       const proof = proveSameLattice(key.R, key.B, { stats });
       msList.push(performance.now() - t0);
       if (!proof.ok) allPass = false;
-      if (stats.maxIntermediate > maxIntermediate) maxIntermediate = stats.maxIntermediate;
+      if (stats.maxIntermediate > maxIntermediate) {
+        maxIntermediate = stats.maxIntermediate;
+        argmaxSeed = seed;
+      }
     }
     return {
       n,
       keys: SEEDS.i1.keys,
       allPass,
+      // The SAMPLE MAXIMUM, not a bound: it is the largest value these `keys`
+      // keys happened to touch, and a larger sample may exceed it. Any prose
+      // that cites it must cite `keys` with it. See `measurement` below.
       maxIntermediate,
+      maxIntermediateSeed: argmaxSeed,
+      keySeedFirst: SEEDS.i1.keySeedBase * n,
+      keySeedLast: SEEDS.i1.keySeedBase * n + SEEDS.i1.keys - 1,
       two53: TWO53,
       // The headroom IS the claim: integer exactness in doubles is safe only
       // while this stays large, so it is measured rather than asserted.
@@ -273,9 +284,45 @@ function sectionI1(m) {
       msP50: r3(pct(msList, 0.5)),
     };
   });
+  const worst = byDimension.reduce((a, b) => (b.maxIntermediate > a.maxIntermediate ? b : a));
   return {
     claim: 'C1 / invariant I1: U*R = B, V*B = R and U*V = I, all in exact integers under 2^53.',
     ok: byDimension.every((d) => d.allPass),
+    // WHY THIS BLOCK EXISTS. An earlier draft of the README cited a single
+    // largest-intermediate figure as though it were an upper bound. It is not:
+    // it is a maximum over a finite key sample, and a larger sample found a
+    // larger value. So the sample size, the seeds and the procedure travel with
+    // the number, and every citation of it names N.
+    measurement: {
+      statistic: 'maximum over the sampled keys of the largest absolute intermediate reached inside the I1 proof',
+      isObservedMaximum: true,
+      isUpperBound: false,
+      keysPerDimension: SEEDS.i1.keys,
+      dimensions: DIMS,
+      keySeedFormula: 'makeRng(SEEDS.i1.keySeedBase * n + s), keySeedBase = ' +
+        SEEDS.i1.keySeedBase + ', s = 0..' + (SEEDS.i1.keys - 1),
+      instrument: 'MulStats.maxIntermediate, threaded through matmul() in src/lattice/matrix.ts',
+      procedure: [
+        'For each n in [' + DIMS.join(', ') + ']:',
+        'for s = 0..' + (SEEDS.i1.keys - 1) + ', draw a key with gghKeygen(n, { rng: makeRng(' +
+          SEEDS.i1.keySeedBase + ' * n + s) });',
+        'run proveSameLattice(key.R, key.B, { stats }), which performs U*R, V*B and U*V with' +
+          ' matmul() instrumented by MulStats;',
+        'record stats.maxIntermediate, the largest absolute value of any partial sum or product' +
+          ' in those products;',
+        'maxIntermediate for the dimension is the maximum of those ' + SEEDS.i1.keys + ' values,' +
+          ' and maxIntermediateSeed is the seed that produced it.',
+        'Deterministic: the same seeds reproduce the same values on any machine.',
+      ].join(' '),
+      globalMaxIntermediate: worst.maxIntermediate,
+      globalMaxAtN: worst.n,
+      globalMaxSeed: worst.maxIntermediateSeed,
+      caveat: 'A maximum over ' + SEEDS.i1.keys + ' keys per dimension is evidence about those' +
+        ' keys, not a proof about all keys. The lab\'s safety argument rests on the runtime' +
+        ' Number.isSafeInteger guard in the proof itself (checks.entriesSafe), which fails loudly' +
+        ' on any key that does exceed 2^53; this figure says how far the sampled keys stayed from' +
+        ' that guard.',
+    },
     byDimension,
   };
 }

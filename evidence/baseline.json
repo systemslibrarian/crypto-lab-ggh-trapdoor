@@ -1,13 +1,13 @@
 {
   "schema": "crypto-lab-ggh-trapdoor/evidence@1",
   "provenance": {
-    "timestamp": "2026-09-09T03:00:27.128Z",
-    "commit": "2dcda07cc029b577b141ed51ce33807a0e47aad3",
-    "commitShort": "2dcda07",
+    "timestamp": "2026-11-16T00:26:07.859Z",
+    "commit": "1ba2116692d369d57f55a93413b3a72850e6b5d2",
+    "commitShort": "1ba2116",
     "branch": "main",
     "treeClean": false,
-    "node": "v26.5.0",
-    "v8": "14.6.202.34-node.24",
+    "node": "v26.9.0",
+    "v8": "14.6.202.34-node.32",
     "os": "Darwin 25.6.0",
     "platform": "darwin",
     "arch": "arm64",
@@ -15,7 +15,7 @@
     "seedCorpus": {
       "i1": {
         "keySeedBase": 1000,
-        "keys": 3
+        "keys": 120
       },
       "i2": {
         "keySeedBase": 7000,
@@ -64,7 +64,7 @@
     ],
     "generator": "scripts/evidence.mjs",
     "note": "Every value here is recomputed from src/ with the seeds above. Wall-clock fields (msP50/msP95/ms) and bundle sizes are the only machine-dependent ones.",
-    "generationMs": 9267.975,
+    "generationMs": 166580.402,
     "warnings": []
   },
   "summary": {
@@ -82,46 +82,77 @@
   "i1": {
     "claim": "C1 / invariant I1: U*R = B, V*B = R and U*V = I, all in exact integers under 2^53.",
     "ok": true,
+    "measurement": {
+      "statistic": "maximum over the sampled keys of the largest absolute intermediate reached inside the I1 proof",
+      "isObservedMaximum": true,
+      "isUpperBound": false,
+      "keysPerDimension": 120,
+      "dimensions": [
+        8,
+        16,
+        32,
+        60
+      ],
+      "keySeedFormula": "makeRng(SEEDS.i1.keySeedBase * n + s), keySeedBase = 1000, s = 0..119",
+      "instrument": "MulStats.maxIntermediate, threaded through matmul() in src/lattice/matrix.ts",
+      "procedure": "For each n in [8, 16, 32, 60]: for s = 0..119, draw a key with gghKeygen(n, { rng: makeRng(1000 * n + s) }); run proveSameLattice(key.R, key.B, { stats }), which performs U*R, V*B and U*V with matmul() instrumented by MulStats; record stats.maxIntermediate, the largest absolute value of any partial sum or product in those products; maxIntermediate for the dimension is the maximum of those 120 values, and maxIntermediateSeed is the seed that produced it. Deterministic: the same seeds reproduce the same values on any machine.",
+      "globalMaxIntermediate": 84490,
+      "globalMaxAtN": 60,
+      "globalMaxSeed": 60074,
+      "caveat": "A maximum over 120 keys per dimension is evidence about those keys, not a proof about all keys. The lab's safety argument rests on the runtime Number.isSafeInteger guard in the proof itself (checks.entriesSafe), which fails loudly on any key that does exceed 2^53; this figure says how far the sampled keys stayed from that guard."
+    },
     "byDimension": [
       {
         "n": 8,
-        "keys": 3,
+        "keys": 120,
         "allPass": true,
-        "maxIntermediate": 24089,
+        "maxIntermediate": 68498,
+        "maxIntermediateSeed": 8007,
+        "keySeedFirst": 8000,
+        "keySeedLast": 8119,
         "two53": 9007199254740991,
-        "headroom": 373913373520.7352,
-        "spareBits": 38.443913,
-        "msP50": 0.117
+        "headroom": 131495799216.63393,
+        "spareBits": 36.936226,
+        "msP50": 0.074
       },
       {
         "n": 16,
-        "keys": 3,
+        "keys": 120,
         "allPass": true,
-        "maxIntermediate": 13606,
+        "maxIntermediate": 46304,
+        "maxIntermediateSeed": 16093,
+        "keySeedFirst": 16000,
+        "keySeedLast": 16119,
         "two53": 9007199254740991,
-        "headroom": 662002003141.334,
-        "spareBits": 39.268045,
-        "msP50": 0.364
+        "headroom": 194523135252.69937,
+        "spareBits": 37.501151,
+        "msP50": 0.41
       },
       {
         "n": 32,
-        "keys": 3,
+        "keys": 120,
         "allPass": true,
-        "maxIntermediate": 17786,
+        "maxIntermediate": 67231,
+        "maxIntermediateSeed": 32054,
+        "keySeedFirst": 32000,
+        "keySeedLast": 32119,
         "two53": 9007199254740991,
-        "headroom": 506420738487.6302,
-        "spareBits": 38.881546,
-        "msP50": 1.068
+        "headroom": 133973899759.64943,
+        "spareBits": 36.963161,
+        "msP50": 3.669
       },
       {
         "n": 60,
-        "keys": 3,
+        "keys": 120,
         "allPass": true,
-        "maxIntermediate": 15762,
+        "maxIntermediate": 84490,
+        "maxIntermediateSeed": 60074,
+        "keySeedFirst": 60000,
+        "keySeedLast": 60119,
         "two53": 9007199254740991,
-        "headroom": 571450276280.9917,
-        "spareBits": 39.055837,
-        "msP50": 5.941
+        "headroom": 106606690196.95811,
+        "spareBits": 36.633507,
+        "msP50": 27.947
       }
     ]
   },
@@ -286,7 +317,7 @@
           "guaranteed": true,
           "log10OrthogonalityDefect": 0.038971,
           "shortestRowNorm": 36.386811,
-          "lllMs": 0.308,
+          "lllMs": 21.759,
           "lllSwaps": 54,
           "lllIters": 109,
           "lllGuardMax": 255,
@@ -328,7 +359,7 @@
           "guaranteed": true,
           "log10OrthogonalityDefect": 0.127066,
           "shortestRowNorm": 44.788391,
-          "lllMs": 0.651,
+          "lllMs": 9.202,
           "lllSwaps": 371,
           "lllIters": 746,
           "lllGuardMax": 1000,
@@ -370,7 +401,7 @@
           "guaranteed": true,
           "log10OrthogonalityDefect": 0.358924,
           "shortestRowNorm": 59.841457,
-          "lllMs": 1.679,
+          "lllMs": 15.425,
           "lllSwaps": 1720,
           "lllIters": 3458,
           "lllGuardMax": 1721,
@@ -412,7 +443,7 @@
           "guaranteed": true,
           "log10OrthogonalityDefect": 0.832324,
           "shortestRowNorm": 76.197113,
-          "lllMs": 7.829,
+          "lllMs": 287.289,
           "lllSwaps": 5438,
           "lllIters": 10923,
           "lllGuardMax": 4341,
@@ -444,8 +475,8 @@
           "trials": 20,
           "verified": 20,
           "successRate": 1,
-          "msP50": 0.068,
-          "msP95": 0.19,
+          "msP50": 0.215,
+          "msP95": 1.554,
           "normRatioMin": 1,
           "normRatioMax": 1
         },
@@ -464,8 +495,8 @@
           "trials": 20,
           "verified": 20,
           "successRate": 1,
-          "msP50": 0.134,
-          "msP95": 0.164,
+          "msP50": 0.343,
+          "msP95": 2.342,
           "normRatioMin": 1,
           "normRatioMax": 1
         },
@@ -484,8 +515,8 @@
           "trials": 20,
           "verified": 20,
           "successRate": 1,
-          "msP50": 1.109,
-          "msP95": 2.748,
+          "msP50": 4.631,
+          "msP95": 57.681,
           "normRatioMin": 1,
           "normRatioMax": 1
         },
@@ -504,8 +535,8 @@
           "trials": 20,
           "verified": 20,
           "successRate": 1,
-          "msP50": 7.602,
-          "msP95": 7.946,
+          "msP50": 51.737,
+          "msP95": 202.235,
           "normRatioMin": 1,
           "normRatioMax": 1
         },
@@ -535,8 +566,8 @@
       "forgeryOk": 4,
       "forgerySuccessRate": 1,
       "groundTruthRecovered": 4,
-      "msP50": 100.61,
-      "msP95": 331.345,
+      "msP50": 1305.206,
+      "msP95": 8998.339,
       "sumA4HeldOutMin": 0.998845,
       "sumA4HeldOutMax": 1.018596,
       "integralityGapMin": 0.161659,
@@ -544,7 +575,7 @@
       "runs": [
         {
           "keySeed": 20260908,
-          "ms": 100.60958299999993,
+          "ms": 1305.205915999999,
           "forgeryOk": true,
           "groundTruthRecovered": true,
           "reason": "the real verifier accepted 20/20 fresh forgeries signed with a candidate basis built from 8000 training signatures (8000 training + 8000 held out = 16000 oracle signatures observed); that is forgery capability, which is a separate question from whether the candidate is the secret basis",
@@ -564,7 +595,7 @@
         },
         {
           "keySeed": 555001,
-          "ms": 97.10383300000012,
+          "ms": 1013.6957079999993,
           "forgeryOk": true,
           "groundTruthRecovered": true,
           "reason": "the real verifier accepted 20/20 fresh forgeries signed with a candidate basis built from 8000 training signatures (8000 training + 8000 held out = 16000 oracle signatures observed); that is forgery capability, which is a separate question from whether the candidate is the secret basis",
@@ -584,7 +615,7 @@
         },
         {
           "keySeed": 555002,
-          "ms": 331.345,
+          "ms": 8998.338792000002,
           "forgeryOk": true,
           "groundTruthRecovered": true,
           "reason": "the real verifier accepted 20/20 fresh forgeries signed with a candidate basis built from 32000 training signatures (32000 training + 32000 held out = 64000 oracle signatures observed); that is forgery capability, which is a separate question from whether the candidate is the secret basis",
@@ -604,7 +635,7 @@
         },
         {
           "keySeed": 555003,
-          "ms": 187.51537499999995,
+          "ms": 5572.682000000001,
           "forgeryOk": true,
           "groundTruthRecovered": true,
           "reason": "the real verifier accepted 20/20 fresh forgeries signed with a candidate basis built from 16000 training signatures (16000 training + 16000 held out = 32000 oracle signatures observed); that is forgery capability, which is a separate question from whether the candidate is the secret basis",
@@ -629,8 +660,8 @@
       "forgeryOk": 0,
       "forgerySuccessRate": 0,
       "groundTruthRecovered": 0,
-      "msP50": 3211.113,
-      "msP95": 4283.871,
+      "msP50": 50479.227,
+      "msP95": 59125.082,
       "sumA4HeldOutMin": -0.002798,
       "sumA4HeldOutMax": 0.066936,
       "integralityGapMin": 0.423626,
@@ -638,7 +669,7 @@
       "runs": [
         {
           "keySeed": 9090,
-          "ms": 4283.871375,
+          "ms": 50479.227208,
           "forgeryOk": false,
           "groundTruthRecovered": false,
           "reason": "no forgery was accepted within the cap of 32000 signatures per rung (32000 training + 32000 held out = 64000 oracle signatures observed); last rung forged 0/20",
@@ -666,7 +697,7 @@
         },
         {
           "keySeed": 9091,
-          "ms": 3211.1132080000007,
+          "ms": 59125.0815,
           "forgeryOk": false,
           "groundTruthRecovered": false,
           "reason": "no forgery was accepted within the cap of 32000 signatures per rung (32000 training + 32000 held out = 64000 oracle signatures observed); last rung forged 0/20",
@@ -724,8 +755,8 @@
     "byDimension": [
       {
         "n": 8,
-        "ms": 0.075,
-        "proofMs": 0.239,
+        "ms": 0.349,
+        "proofMs": 1.76,
         "proofOk": true,
         "detBits": 44,
         "detDecimalDigits": 13,
@@ -742,8 +773,8 @@
       },
       {
         "n": 16,
-        "ms": 0.585,
-        "proofMs": 0.894,
+        "ms": 2.582,
+        "proofMs": 2.329,
         "proofOk": true,
         "detBits": 91,
         "detDecimalDigits": 27,
@@ -760,8 +791,8 @@
       },
       {
         "n": 32,
-        "ms": 5.356,
-        "proofMs": 5.286,
+        "ms": 14.672,
+        "proofMs": 21.141,
         "proofOk": true,
         "detBits": 192,
         "detDecimalDigits": 58,
@@ -778,8 +809,8 @@
       },
       {
         "n": 60,
-        "ms": 34.353,
-        "proofMs": 33.696,
+        "ms": 126.605,
+        "proofMs": 226.744,
         "proofOk": true,
         "detBits": 378,
         "detDecimalDigits": 114,
@@ -798,8 +829,8 @@
   },
   "bundle": {
     "present": true,
-    "totalBytes": 127030,
-    "totalGzipBytes": 43393,
+    "totalBytes": 128286,
+    "totalGzipBytes": 43752,
     "files": [
       {
         "file": "dist/assets/break2.worker-BXZ_3HER.js",
@@ -808,22 +839,22 @@
         "sha256": "e603398d6291a8fb"
       },
       {
-        "file": "dist/assets/index-Clkth0hO.css",
-        "bytes": 11288,
-        "gzipBytes": 3020,
-        "sha256": "e6d31db798343dab"
+        "file": "dist/assets/index-BGm1YJ9M.css",
+        "bytes": 11999,
+        "gzipBytes": 3173,
+        "sha256": "555db151713ec102"
       },
       {
-        "file": "dist/assets/index-D836cI2y.js",
-        "bytes": 72752,
-        "gzipBytes": 25638,
-        "sha256": "38c637613175ac4a"
+        "file": "dist/assets/index-BRH9GGgA.js",
+        "bytes": 73230,
+        "gzipBytes": 25799,
+        "sha256": "435667ad1cec4dbb"
       },
       {
         "file": "dist/index.html",
-        "bytes": 24792,
-        "gzipBytes": 8209,
-        "sha256": "ea7134bc2bc1fd5b"
+        "bytes": 24859,
+        "gzipBytes": 8254,
+        "sha256": "58c8d1a623b7a9be"
       }
     ],
     "note": "Sizes are from the dist/ present at generation time; they change with every build."
