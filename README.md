@@ -34,7 +34,9 @@ raw-basis comparison in Act 2 is a true statement about *basis quality* — the 
 works with a short basis and fails with a long one — and it is not a statement about security.
 The two historical attacks are worth studying because they explain how GGH fell at the sizes
 where ordinary reduction was *not* enough: Nguyen needed BKZ-20 and pruned BKZ-60 for the real
-challenges, and dimension 400 held out until 2010.
+challenges. His 1999 experiments solved dimensions 200, 250, 300 and 350; dimension 400 remained
+unsolved, although the attack still recovered the plaintext modulo 6 and therefore partial
+plaintext information.
 
 **What the two breaks actually show.** Neither one solves a hard lattice problem head-on;
 both exploit the shape of GGH's own randomness, and they attack **two different schemes**:
@@ -42,11 +44,14 @@ both exploit the shape of GGH's own randomness, and they attack **two different 
 - **Nguyen 1999 broke GGH encryption.** Every entry of the error `e` is `±σ`, so all of them
   are congruent to `σ` mod `2σ`. Then `c + s ≡ m·B (mod 2σ)` for `s = (σ,…,σ)`, which leaks
   `m mod 2σ` by linear algebra and shrinks the residual error from `σ√n` to `√(n/4)`. Ordinary
-  lattice reduction finishes the job. Nguyen solved four of the five published challenges;
-  dimension 400 held out until 2010.
+  lattice reduction finishes the job. Nguyen's 1999 experiments solved four of the five
+  published challenges. Dimension 400 remained unsolved in that paper, although the attack
+  recovered the plaintext modulo 6 and therefore partial plaintext information.
 - **Nguyen–Regev 2006 broke the GGH signature design**, and NTRUSign with it. Every
-  deterministic Babai signature is a uniform sample from the parallelepiped spanned by the
-  secret basis, and a fourth-moment descent recovers that basis up to sign and order.
+  deterministic Babai signature leaks a point in the parallelepiped spanned by the secret basis.
+  Under the paper's idealized message-distribution assumption—and approximately when hashed
+  message points are sufficiently wide and random—those points are uniform enough for a
+  fourth-moment descent to recover that basis up to sign and order.
 
 Falcon samples instead of rounding for exactly this reason — its specification says that
 setting the sampler width to zero "opens the door to learning attacks" of the Nguyen–Regev
