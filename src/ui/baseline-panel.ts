@@ -13,8 +13,8 @@
  * That is not a flaw in the lab, it is the reason GGH was proposed at n = 200 to
  * 400. Reduction alone settles these sizes. What the two historical attacks
  * explain is how GGH fell at the sizes where reduction alone could not -- Nguyen
- * needed BKZ-20 and pruned BKZ-60 for the real challenges, and dimension 400
- * held out until 2010.
+ * needed BKZ-20 and pruned BKZ-60 for the real challenges. His 1999 experiments
+ * left dimension 400 unsolved while still recovering the plaintext modulo 6.
  *
  * So the honest framing, which this panel states on screen: the raw-basis
  * comparison is about BASIS QUALITY, and it is true. It is not evidence of
@@ -108,7 +108,8 @@ export function renderBaselinePanel(key: GghKey, seed: number): void {
     'demonstrate -- ordinary reduction settles them outright, which is exactly why GGH was ' +
     'proposed at 200 to 400. The two historical attacks below are worth studying because they ' +
     'explain how GGH fell at those larger sizes, where reduction alone was not enough: Nguyen ' +
-    'needed BKZ-20 and pruned BKZ-60, and dimension 400 held out until 2010.';
+    'needed BKZ-20 and pruned BKZ-60. His 1999 experiments left dimension 400 unsolved while ' +
+    'still recovering the plaintext modulo 6 and therefore partial plaintext information.';
   host.appendChild(note);
 
   const raw = document.createElement('p');
