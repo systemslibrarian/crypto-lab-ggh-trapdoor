@@ -37,13 +37,16 @@ const CARDS: Card[] = [
         "GGH's own randomness.",
       'Nguyen 1999 broke GGH <em>encryption</em>. Because every entry of <code>e</code> is ' +
         '<code>&plusmn;&sigma;</code>, <code>e + s</code> vanishes mod <code>2&sigma;</code>, ' +
-        'which leaks <code>m mod 2&sigma;</code> and shrinks the residual error from ' +
+      'which leaks <code>m mod 2&sigma;</code> and shrinks the residual error from ' +
         '<code>&sigma;&radic;n</code> to <code>&radic;(n/4)</code>. Ordinary lattice reduction ' +
-        'then finished four of the five published challenges. Dimension 400 held out until 2010.',
+        'then finished four of the five published challenges. In Nguyen&rsquo;s 1999 experiments, ' +
+        'dimension 400 remained unsolved even though the attack recovered the plaintext modulo 6 ' +
+        'and therefore partial plaintext information.',
       'Nguyen&ndash;Regev 2006 broke the GGH <em>signature</em> design, and NTRUSign with it. ' +
-        'Every deterministic Babai signature is a uniform sample from the secret ' +
-        'parallelepiped, and a fourth-moment gradient descent recovers the secret basis up to ' +
-        'sign and order.',
+        'Each deterministic Babai signature leaks a point in the secret parallelepiped. The ' +
+        'paper models those points as uniform under an idealized message distribution; with ' +
+        'sufficiently wide, random hashed messages they are approximately uniform, and a ' +
+        'fourth-moment gradient descent recovers the secret basis up to sign and order.',
       'The first attack is about the error. The second is about the trapdoor. They are not the ' +
         'same lesson, and they are not attacks on the same scheme.',
     ],
