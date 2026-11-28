@@ -392,8 +392,10 @@
           <h2 id="act-4-h"><span class="act-num">Act 4</span> Break 2 &mdash; Nguyen&ndash;Regev 2006</h2>
           <p class="act-lede">
             A different scheme: GGH <em>signatures</em>. Signing is round-off with <code>R</code>,
-            so every signature leaks a point drawn uniformly from the parallelepiped spanned by the
-            secret basis. Collect enough of them and the shape of that box gives up its edges.
+            so every signature leaks a point in the parallelepiped spanned by the secret basis.
+            Under the paper&rsquo;s idealized message-distribution assumption&mdash;and approximately
+            when hashed message points are sufficiently wide and random&mdash;the points fill that
+            shape closely enough for its edges to emerge.
           </p>
           <div class="act-actions">
             <button id="btn-break2-run" type="button" class="btn btn-primary">Collect signatures and attack</button>
